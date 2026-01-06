@@ -48,7 +48,7 @@ jobs:
           region: ${{ env.REGION }}
           source: .
           flags: >-
-            --build-service-account=gha-cloudrun-deployer@hibi-480400.iam.gserviceaccount.com
+            --build-service-account=projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
           allow_unauthenticated: true
           env_vars: |
             TRELLO_API_KEY=${{ secrets.TRELLO_API_KEY }}
