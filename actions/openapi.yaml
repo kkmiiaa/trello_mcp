@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: Trello Actions Proxy
+  version: 0.1.0
+servers:
+  - url: https://{serverUrl}
+    variables:
+      serverUrl:
+        default: example.com
+paths:
+  /v1/ping:
+    get:
+      operationId: ping
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trello/boards:
+    get:
+      operationId: listBoards
+      summary: List Trello boards
+      responses:
+        "200":
+          description: List of boards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Board"
+        "401":
+          description: Trello authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Trello rate limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Trello error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trello/boards/{boardId}/lists:
+    get:
+      operationId: listLists
+      summary: List lists for a Trello board
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of lists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/List"
+        "403":
+          description: Board is not allowlisted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Trello authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Trello rate limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Trello error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    PingResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        version:
+          type: string
+      required:
+        - ok
+        - service
+        - version
+    Board:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        closed:
+          type: boolean
+      required:
+        - id
+        - name
+        - url
+        - closed
+    List:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        closed:
+          type: boolean
+      required:
+        - id
+        - name
+        - closed
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              nullable: true
+          required:
+            - code
+            - message
+      required:
+        - error
