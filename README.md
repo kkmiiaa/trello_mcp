@@ -46,13 +46,26 @@ npm run dev
 このリポジトリは GHA で Cloud Run へデプロイできるようにしています。事前に以下を準備してください。
 
 1. GCP 側で Workload Identity Federation を作成
-2. GitHub Secrets を設定
-3. Cloud Run / Cloud Build / Artifact Registry の API を有効化
+2. Artifact Registry の Docker リポジトリを作成
+3. GitHub Secrets を設定
+4. Cloud Run / Cloud Build / Artifact Registry の API を有効化
+
+Artifact Registry の作成例:
+
+```bash
+gcloud artifacts repositories create trello-actions \
+  --repository-format=docker \
+  --location=asia-northeast1 \
+  --description="Trello Actions Proxy images"
+```
 
 必須 Secrets:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider のフルリソース名
 - `GCP_SERVICE_ACCOUNT`: デプロイ用サービスアカウントのメールアドレス
+- `GCP_PROJECT_ID`: GCP プロジェクト ID
+- `GCP_ARTIFACT_REPOSITORY`: Artifact Registry のリポジトリ名
+- `GCP_BUILD_SERVICE_ACCOUNT`: Cloud Build で使うサービスアカウントのメールアドレス
 - `TRELLO_API_KEY`
 - `TRELLO_API_TOKEN`
 
