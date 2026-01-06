@@ -41,6 +41,32 @@ npm run dev
 - `actions/openapi.yaml` を Actions の OpenAPI として使用します。
 - `servers` の `serverUrl` は環境に合わせて差し替えてください。
 
+## Cloud Run へのデプロイ（GitHub Actions）
+
+このリポジトリは GHA で Cloud Run へデプロイできるようにしています。事前に以下を準備してください。
+
+1. GCP 側で Workload Identity Federation を作成
+2. GitHub Secrets を設定
+3. Cloud Run / Cloud Build / Artifact Registry の API を有効化
+
+必須 Secrets:
+
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider のフルリソース名
+- `GCP_SERVICE_ACCOUNT`: デプロイ用サービスアカウントのメールアドレス
+- `TRELLO_API_KEY`
+- `TRELLO_API_TOKEN`
+
+任意 Secrets:
+
+- `TRELLO_ALLOWED_BOARD_IDS`: allowlist 用
+- `INTERNAL_TOKEN`: `X-Internal-Token` で保護したい場合
+
+デプロイは `main` ブランチへの push で自動実行されます。`SERVICE_NAME` と `REGION` は `.github/workflows/ci.yml` の `deploy` ジョブで調整できます。
+
+デプロイ完了後に表示される URL を `actions/openapi.yaml` の `serverUrl` に設定してください。
+
+Cloud Run は `allow_unauthenticated: true` で公開されるため、必要に応じて `INTERNAL_TOKEN` を設定してください。
+
 ## 疎通確認
 
 ```bash

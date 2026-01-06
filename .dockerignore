@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env
+.env.*
+README.md
+.gitignore
+.eslintrc.cjs
+.prettierrc.json
+tests
+.github
+actions
