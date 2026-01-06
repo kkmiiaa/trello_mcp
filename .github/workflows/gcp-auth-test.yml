@@ -1,0 +1,26 @@
+name: GCP WIF Auth Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auth-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Verify auth
+        run: |
+          gcloud auth list
+          gcloud projects describe hibi-480400
