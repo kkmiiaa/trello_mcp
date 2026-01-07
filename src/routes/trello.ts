@@ -2,7 +2,13 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { AppError } from "../errors.js";
 import { config } from "../config.js";
-import { getCard, listBoards, listCardsForBoard, listCardsForList, listLists } from "../services/trelloClient.js";
+import {
+  getCard,
+  listBoards,
+  listCardsForBoard,
+  listCardsForList,
+  listLists
+} from "../services/trelloClient.js";
 
 const boardIdSchema = z.object({
   boardId: z.string().min(1)

@@ -157,8 +157,7 @@ describe("Trello routes", () => {
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
       .intercept({
-        path:
-          "/1/cards/c1?fields=id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels&key=test-key&token=test-token",
+        path: "/1/cards/c1?fields=id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels&key=test-key&token=test-token",
         method: "GET"
       })
       .reply(200, cardFixture);
