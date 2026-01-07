@@ -223,6 +223,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v1/trello/write/preview:
+    post:
+      operationId: previewWrite
+      summary: Preview write operations
+      parameters:
+        - name: X-Internal-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WritePreviewRequest"
+      responses:
+        "200":
+          description: Preview response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WritePreviewResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trello/write/commit:
+    post:
+      operationId: commitWrite
+      summary: Commit write operations
+      parameters:
+        - name: X-Internal-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteCommitRequest"
+      responses:
+        "200":
+          description: Commit result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteCommitResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     PingResponse:
@@ -316,6 +386,135 @@ components:
         - dueComplete
         - closed
         - labels
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        cardId:
+          type: string
+        text:
+          type: string
+      required:
+        - id
+        - cardId
+        - text
+    WriteAction:
+      type: string
+      enum:
+        - createCard
+        - addComment
+        - updateCard
+    CreateCardPayload:
+      type: object
+      properties:
+        listId:
+          type: string
+        name:
+          type: string
+        desc:
+          type: string
+        due:
+          type:
+            - string
+            - "null"
+        dueComplete:
+          type: boolean
+        labelIds:
+          type: array
+          items:
+            type: string
+      required:
+        - listId
+        - name
+    AddCommentPayload:
+      type: object
+      properties:
+        cardId:
+          type: string
+        text:
+          type: string
+      required:
+        - cardId
+        - text
+    UpdateCardPayload:
+      type: object
+      properties:
+        cardId:
+          type: string
+        name:
+          type: string
+        desc:
+          type: string
+        due:
+          type:
+            - string
+            - "null"
+        dueComplete:
+          type: boolean
+        closed:
+          type: boolean
+        listId:
+          type: string
+        labelIds:
+          type: array
+          items:
+            type: string
+      required:
+        - cardId
+    WritePreviewRequest:
+      type: object
+      properties:
+        action:
+          $ref: "#/components/schemas/WriteAction"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/AddCommentPayload"
+            - $ref: "#/components/schemas/UpdateCardPayload"
+      required:
+        - action
+        - payload
+    WritePreviewResponse:
+      type: object
+      properties:
+        preview:
+          type: object
+          properties:
+            action:
+              $ref: "#/components/schemas/WriteAction"
+            payload:
+              type: object
+          required:
+            - action
+            - payload
+        commitToken:
+          type: string
+        expiresAt:
+          type: string
+      required:
+        - preview
+        - commitToken
+        - expiresAt
+    WriteCommitRequest:
+      type: object
+      properties:
+        commitToken:
+          type: string
+      required:
+        - commitToken
+    WriteCommitResponse:
+      type: object
+      properties:
+        action:
+          $ref: "#/components/schemas/WriteAction"
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/Card"
+            - $ref: "#/components/schemas/Comment"
+      required:
+        - action
+        - result
     ErrorResponse:
       type: object
       properties:

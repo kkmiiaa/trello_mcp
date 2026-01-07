@@ -46,7 +46,9 @@ describe("Trello routes", () => {
 
   it("returns 403 for boardId outside allowlist", async () => {
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -76,7 +78,9 @@ describe("Trello routes", () => {
       .reply(401, { message: "unauthorized" });
 
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -132,7 +136,9 @@ describe("Trello routes", () => {
       .reply(200, { id: "list1", idBoard: "blocked" });
 
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -176,5 +182,128 @@ describe("Trello routes", () => {
 
     await server.close();
     mockAgent.close();
+  });
+
+  it("previews createCard with internal token", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createCard",
+        payload: {
+          listId: "list1",
+          name: "Task"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.preview.action).toBe("createCard");
+    expect(body.commitToken).toBeTypeOf("string");
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("commits createCard after preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" });
+    trelloMock
+      .intercept({
+        path: "/1/cards?key=test-key&token=test-token",
+        method: "POST"
+      })
+      .reply(200, cardFixture);
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const previewResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createCard",
+        payload: {
+          listId: "list1",
+          name: "Task"
+        }
+      }
+    });
+    const { commitToken } = previewResponse.json();
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        commitToken
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "createCard",
+      result: cardFixture
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("rejects write preview without internal token", async () => {
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      payload: {
+        action: "addComment",
+        payload: {
+          cardId: "c1",
+          text: "hi"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Forbidden"
+      }
+    });
+
+    await server.close();
   });
 });

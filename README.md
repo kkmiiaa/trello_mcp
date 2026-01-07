@@ -10,6 +10,8 @@ ChatGPT Actions から利用できる Trello 操作用プロキシ API です。
 - `GET /v1/trello/boards/:boardId/cards`
 - `GET /v1/trello/lists/:listId/cards`
 - `GET /v1/trello/cards/:cardId`
+- `POST /v1/trello/write/preview`
+- `POST /v1/trello/write/commit`
 
 ## 事前準備
 
@@ -35,6 +37,7 @@ npm run dev
 - `TRELLO_API_TOKEN`: Trello API Token
 - `TRELLO_ALLOWED_BOARD_IDS`: 許可する board ID をカンマ区切りで指定（未設定なら全ボード）
 - `INTERNAL_TOKEN`: 任意の簡易ガード用トークン（`X-Internal-Token` で検証）
+- `PREVIEW_TOKEN_SECRET`: write プレビュー用トークン署名キー（write で必須）
 - `HOST` / `PORT`: バインド先
 - `TRELLO_BASE_URL`: Trello API Base URL（通常は変更不要）
 - `REQUEST_TIMEOUT_MS`: Trello API タイムアウト
@@ -100,8 +103,31 @@ curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 
 `INTERNAL_TOKEN` を設定している場合はヘッダに `X-Internal-Token` を付与してください。
 
+## write 操作のプレビュー/コミット
+
+write 操作は 2 段階です。`X-Internal-Token` と `PREVIEW_TOKEN_SECRET` が必須です。
+
+1. プレビュー
+
+```bash
+curl -X POST http://localhost:3000/v1/trello/write/preview \\
+  -H "Content-Type: application/json" \\
+  -H "X-Internal-Token: YOUR_TOKEN" \\
+  -d '{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task\"}}'
+```
+
+2. コミット
+
+```bash
+curl -X POST http://localhost:3000/v1/trello/write/commit \\
+  -H "Content-Type: application/json" \\
+  -H "X-Internal-Token: YOUR_TOKEN" \\
+  -d '{\"commitToken\":\"PREVIEW_TOKEN\"}'
+```
+
 ## セキュリティ方針（概要）
 
 - Trello の API Key / Token はサーバ側で保持し、レスポンスやログに出しません。
 - allowlist による board ID 制限を read-only エンドポイントにも適用します。
 - レート制限や認証失敗は専用のエラーコードで返します。
+- write 操作は `X-Internal-Token` とプレビューコミットの 2 段階を必須にします。

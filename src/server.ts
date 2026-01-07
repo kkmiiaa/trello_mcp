@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { config } from "./config.js";
-import { AppError, mapUnknownError, toErrorResponse } from "./errors.js";
+import { mapUnknownError, toErrorResponse } from "./errors.js";
 import { registerPingRoutes } from "./routes/ping.js";
 import { registerTrelloRoutes } from "./routes/trello.js";
 
@@ -12,15 +12,6 @@ export const createServer = () => {
       level: config.logLevel
     }
   });
-
-  if (config.internalToken) {
-    fastify.addHook("onRequest", async (request) => {
-      const provided = request.headers["x-internal-token"];
-      if (!provided || Array.isArray(provided) || provided !== config.internalToken) {
-        throw new AppError("FORBIDDEN", "Forbidden", 403);
-      }
-    });
-  }
 
   fastify.setErrorHandler((error, _request, reply) => {
     const mapped = mapUnknownError(error);

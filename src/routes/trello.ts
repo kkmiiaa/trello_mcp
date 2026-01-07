@@ -3,12 +3,22 @@ import { z } from "zod";
 import { AppError } from "../errors.js";
 import { config } from "../config.js";
 import {
+  addComment,
+  createCard,
+  ensureBoardAllowed,
   getCard,
+  getListInfo,
   listBoards,
   listCardsForBoard,
   listCardsForList,
-  listLists
+  listLists,
+  updateCard
 } from "../services/trelloClient.js";
+import {
+  PreviewAction,
+  generatePreviewToken,
+  verifyPreviewToken
+} from "../services/previewToken.js";
 
 const boardIdSchema = z.object({
   boardId: z.string().min(1)
@@ -20,6 +30,15 @@ const listIdSchema = z.object({
 
 const cardIdSchema = z.object({
   cardId: z.string().min(1)
+});
+
+const previewRequestSchema = z.object({
+  action: z.enum(["createCard", "addComment", "updateCard"]),
+  payload: z.record(z.unknown())
+});
+
+const commitRequestSchema = z.object({
+  commitToken: z.string().min(1)
 });
 
 const cardResponseSchema = {
@@ -48,6 +67,36 @@ const cardResponseSchema = {
     }
   },
   required: ["id", "name", "desc", "url", "idList", "idBoard", "dueComplete", "closed", "labels"]
+};
+
+const commentResponseSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    cardId: { type: "string" },
+    text: { type: "string" }
+  },
+  required: ["id", "cardId", "text"]
+};
+
+const requireWriteToken = (request: { headers: Record<string, unknown> }) => {
+  if (!config.internalToken) {
+    throw new AppError("FORBIDDEN", "Write access is not configured", 403);
+  }
+  const provided = request.headers["x-internal-token"];
+  if (!provided || Array.isArray(provided) || provided !== config.internalToken) {
+    throw new AppError("FORBIDDEN", "Forbidden", 403);
+  }
+};
+
+const toPreviewResponse = (action: PreviewAction, payload: Record<string, unknown>) => {
+  const exp = Date.now() + 5 * 60 * 1000;
+  const token = generatePreviewToken({ action, payload, exp });
+  return {
+    preview: { action, payload },
+    commitToken: token,
+    expiresAt: new Date(exp).toISOString()
+  };
 };
 
 export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
@@ -194,6 +243,176 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
     async (request) => {
       const { cardId } = cardIdSchema.parse(request.params);
       return getCard(cardId);
+    }
+  );
+
+  fastify.post(
+    "/v1/trello/write/preview",
+    {
+      schema: {
+        description: "Preview Trello write operations",
+        tags: ["trello"],
+        body: {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            payload: { type: "object" }
+          },
+          required: ["action", "payload"]
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              preview: {
+                type: "object",
+                properties: {
+                  action: { type: "string" },
+                  payload: { type: "object" }
+                },
+                required: ["action", "payload"]
+              },
+              commitToken: { type: "string" },
+              expiresAt: { type: "string" }
+            },
+            required: ["preview", "commitToken", "expiresAt"]
+          }
+        }
+      }
+    },
+    async (request) => {
+      requireWriteToken(request);
+      const { action, payload } = previewRequestSchema.parse(request.body);
+
+      if (action === "createCard") {
+        const parsed = z
+          .object({
+            listId: z.string().min(1),
+            name: z.string().min(1),
+            desc: z.string().optional(),
+            due: z.string().nullable().optional(),
+            dueComplete: z.boolean().optional(),
+            labelIds: z.array(z.string()).optional()
+          })
+          .parse(payload);
+
+        const listInfo = await getListInfo(parsed.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+        return toPreviewResponse(action, parsed);
+      }
+
+      if (action === "addComment") {
+        const parsed = z
+          .object({
+            cardId: z.string().min(1),
+            text: z.string().min(1)
+          })
+          .parse(payload);
+        await getCard(parsed.cardId);
+        return toPreviewResponse(action, parsed);
+      }
+
+      const parsed = z
+        .object({
+          cardId: z.string().min(1),
+          name: z.string().optional(),
+          desc: z.string().optional(),
+          due: z.string().nullable().optional(),
+          dueComplete: z.boolean().optional(),
+          closed: z.boolean().optional(),
+          listId: z.string().optional(),
+          labelIds: z.array(z.string()).optional()
+        })
+        .parse(payload);
+      await getCard(parsed.cardId);
+      if (parsed.listId) {
+        const listInfo = await getListInfo(parsed.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+      }
+      return toPreviewResponse(action, parsed);
+    }
+  );
+
+  fastify.post(
+    "/v1/trello/write/commit",
+    {
+      schema: {
+        description: "Commit Trello write operations",
+        tags: ["trello"],
+        body: {
+          type: "object",
+          properties: {
+            commitToken: { type: "string" }
+          },
+          required: ["commitToken"]
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              action: { type: "string" },
+              result: {
+                oneOf: [cardResponseSchema, commentResponseSchema]
+              }
+            },
+            required: ["action", "result"]
+          }
+        }
+      }
+    },
+    async (request) => {
+      requireWriteToken(request);
+      const { commitToken } = commitRequestSchema.parse(request.body);
+      const tokenPayload = verifyPreviewToken(commitToken);
+
+      if (tokenPayload.action === "createCard") {
+        const parsed = z
+          .object({
+            listId: z.string().min(1),
+            name: z.string().min(1),
+            desc: z.string().optional(),
+            due: z.string().nullable().optional(),
+            dueComplete: z.boolean().optional(),
+            labelIds: z.array(z.string()).optional()
+          })
+          .parse(tokenPayload.payload);
+        const listInfo = await getListInfo(parsed.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+        const result = await createCard(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
+      if (tokenPayload.action === "addComment") {
+        const parsed = z
+          .object({
+            cardId: z.string().min(1),
+            text: z.string().min(1)
+          })
+          .parse(tokenPayload.payload);
+        await getCard(parsed.cardId);
+        const result = await addComment(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
+      const parsed = z
+        .object({
+          cardId: z.string().min(1),
+          name: z.string().optional(),
+          desc: z.string().optional(),
+          due: z.string().nullable().optional(),
+          dueComplete: z.boolean().optional(),
+          closed: z.boolean().optional(),
+          listId: z.string().optional(),
+          labelIds: z.array(z.string()).optional()
+        })
+        .parse(tokenPayload.payload);
+      await getCard(parsed.cardId);
+      if (parsed.listId) {
+        const listInfo = await getListInfo(parsed.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+      }
+      const result = await updateCard(parsed);
+      return { action: tokenPayload.action, result };
     }
   );
 };
