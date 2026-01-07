@@ -51,7 +51,7 @@ jobs:
             --project "${PROJECT_ID}" \
             --region "${REGION}" \
             --service-account "projects/${PROJECT_ID}/serviceAccounts/${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}" \
-            --logging=CLOUD_LOGGING_ONLY \
+            --gcs-log-dir "gs://${{ secrets.GCP_CLOUD_BUILD_LOGS_BUCKET }}/cloud-build" \
             --tag "${IMAGE_URI}" \
             .
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"

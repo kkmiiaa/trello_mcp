@@ -59,6 +59,12 @@ gcloud artifacts repositories create trello-actions \
   --description="Trello Actions Proxy images"
 ```
 
+Cloud Build のログ保存用バケット例:
+
+```bash
+gsutil mb -l asia-northeast1 gs://YOUR_LOGS_BUCKET
+```
+
 必須 Secrets:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider のフルリソース名
@@ -66,6 +72,7 @@ gcloud artifacts repositories create trello-actions \
 - `GCP_PROJECT_ID`: GCP プロジェクト ID
 - `GCP_ARTIFACT_REPOSITORY`: Artifact Registry のリポジトリ名
 - `GCP_BUILD_SERVICE_ACCOUNT`: Cloud Build で使うサービスアカウントのメールアドレス
+- `GCP_CLOUD_BUILD_LOGS_BUCKET`: Cloud Build のログ保存用 GCS バケット名
 - `TRELLO_API_KEY`
 - `TRELLO_API_TOKEN`
 
