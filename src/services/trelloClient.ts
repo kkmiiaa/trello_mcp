@@ -77,6 +77,33 @@ export type TrelloList = {
   closed: boolean;
 };
 
+export type TrelloCard = {
+  id: string;
+  name: string;
+  desc: string;
+  url: string;
+  idList: string;
+  idBoard: string;
+  due: string | null;
+  dueComplete: boolean;
+  closed: boolean;
+  labels: Array<{ id: string; name: string; color: string | null }>;
+};
+
+type TrelloListInfo = {
+  id: string;
+  idBoard: string;
+};
+
+const ensureBoardAllowed = (boardId: string) => {
+  if (config.trello.allowedBoardIds.length === 0) {
+    return;
+  }
+  if (!config.trello.allowedBoardIds.includes(boardId)) {
+    throw new AppError("FORBIDDEN", "Board access is not allowed", 403);
+  }
+};
+
 export const listBoards = async (): Promise<TrelloBoard[]> => {
   const boards = await requestTrello<TrelloBoard[]>("/members/me/boards", {
     fields: "id,name,url,closed"
@@ -94,3 +121,31 @@ export const listLists = async (boardId: string): Promise<TrelloList[]> =>
   requestTrello<TrelloList[]>(`/boards/${boardId}/lists`, {
     fields: "id,name,closed"
   });
+
+export const listCardsForBoard = async (boardId: string): Promise<TrelloCard[]> => {
+  ensureBoardAllowed(boardId);
+  return requestTrello<TrelloCard[]>(`/boards/${boardId}/cards`, {
+    fields: "id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels"
+  });
+};
+
+const getListInfo = async (listId: string): Promise<TrelloListInfo> =>
+  requestTrello<TrelloListInfo>(`/lists/${listId}`, {
+    fields: "id,idBoard"
+  });
+
+export const listCardsForList = async (listId: string): Promise<TrelloCard[]> => {
+  const listInfo = await getListInfo(listId);
+  ensureBoardAllowed(listInfo.idBoard);
+  return requestTrello<TrelloCard[]>(`/lists/${listId}/cards`, {
+    fields: "id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels"
+  });
+};
+
+export const getCard = async (cardId: string): Promise<TrelloCard> => {
+  const card = await requestTrello<TrelloCard>(`/cards/${cardId}`, {
+    fields: "id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels"
+  });
+  ensureBoardAllowed(card.idBoard);
+  return card;
+};

@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { createServerWithEnv, setupMockAgent } from "./testHelpers.js";
 
 describe("Trello routes", () => {
+  const cardFixture = {
+    id: "c1",
+    name: "Card 1",
+    desc: "Test card",
+    url: "https://trello.com/c1",
+    idList: "l1",
+    idBoard: "allowed",
+    due: null,
+    dueComplete: false,
+    closed: false,
+    labels: []
+  };
+
   it("filters boards by allowlist", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
@@ -103,6 +116,64 @@ describe("Trello routes", () => {
         message: "Trello rate limit exceeded"
       }
     });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("blocks list cards when board is not allowlisted", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "blocked" });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/v1/trello/lists/list1/cards"
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Board access is not allowed"
+      }
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("returns card details for allowlisted board", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path:
+          "/1/cards/c1?fields=id,name,desc,url,idList,idBoard,due,dueComplete,closed,labels&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, cardFixture);
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/v1/trello/cards/c1"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(cardFixture);
 
     await server.close();
     mockAgent.close();
