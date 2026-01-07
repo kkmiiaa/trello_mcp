@@ -6,7 +6,7 @@ servers:
   - url: https://{serverUrl}
     variables:
       serverUrl:
-        default: example.com
+        default: trello-actions-proxy-kl2lm6izya-an.a.run.app
 paths:
   /v1/ping:
     get:
