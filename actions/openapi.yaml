@@ -258,6 +258,7 @@ paths:
     post:
       operationId: commitWrite
       summary: Commit write operations
+      x-openai-isConsequential: true
       security:
         - InternalTokenAuth: []
       requestBody:
