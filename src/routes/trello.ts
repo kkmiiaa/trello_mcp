@@ -69,16 +69,6 @@ const cardResponseSchema = {
   required: ["id", "name", "desc", "url", "idList", "idBoard", "dueComplete", "closed", "labels"]
 };
 
-const commentResponseSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    cardId: { type: "string" },
-    text: { type: "string" }
-  },
-  required: ["id", "cardId", "text"]
-};
-
 const requireWriteToken = (request: { headers: Record<string, unknown> }) => {
   if (!config.internalToken) {
     throw new AppError("FORBIDDEN", "Write access is not configured", 403);
@@ -345,18 +335,6 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
             commitToken: { type: "string" }
           },
           required: ["commitToken"]
-        },
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              action: { type: "string" },
-              result: {
-                oneOf: [cardResponseSchema, commentResponseSchema]
-              }
-            },
-            required: ["action", "result"]
-          }
         }
       }
     },

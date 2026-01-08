@@ -169,7 +169,9 @@ describe("Trello routes", () => {
       .reply(200, cardFixture);
 
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -193,9 +195,17 @@ describe("Trello routes", () => {
         method: "GET"
       })
       .reply(200, { id: "list1", idBoard: "allowed" });
+    trelloMock
+      .intercept({
+        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" });
 
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -227,19 +237,22 @@ describe("Trello routes", () => {
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
       .intercept({
-        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
+        path: new RegExp("^/1/lists/list1\\?.*$"),
         method: "GET"
       })
-      .reply(200, { id: "list1", idBoard: "allowed" });
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
     trelloMock
       .intercept({
-        path: "/1/cards?key=test-key&token=test-token",
+        path: new RegExp("^/1/cards\\?.*$"),
         method: "POST"
       })
       .reply(200, cardFixture);
 
     const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const previewResponse = await server.inject({
