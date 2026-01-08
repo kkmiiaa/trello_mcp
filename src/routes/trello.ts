@@ -258,7 +258,7 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
                 type: "object",
                 properties: {
                   action: { type: "string" },
-                  payload: { type: "object" }
+                  payload: { type: "object", additionalProperties: true }
                 },
                 required: ["action", "payload"]
               },
