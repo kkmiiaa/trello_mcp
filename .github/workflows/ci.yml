@@ -57,9 +57,16 @@ jobs:
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
       - name: Deploy to Cloud Run
         run: |
+          cat <<EOF > env-vars.yaml
+          TRELLO_API_KEY: "${{ secrets.TRELLO_API_KEY }}"
+          TRELLO_API_TOKEN: "${{ secrets.TRELLO_API_TOKEN }}"
+          TRELLO_ALLOWED_BOARD_IDS: "${{ secrets.TRELLO_ALLOWED_BOARD_IDS }}"
+          INTERNAL_TOKEN: "${{ secrets.INTERNAL_TOKEN }}"
+          PREVIEW_TOKEN_SECRET: "${{ secrets.PREVIEW_TOKEN_SECRET }}"
+          EOF
           gcloud run deploy "${SERVICE_NAME}" \
             --project "${PROJECT_ID}" \
             --region "${REGION}" \
             --image "${IMAGE_URI}" \
             --allow-unauthenticated \
-            --set-env-vars "TRELLO_API_KEY=${{ secrets.TRELLO_API_KEY }},TRELLO_API_TOKEN=${{ secrets.TRELLO_API_TOKEN }},TRELLO_ALLOWED_BOARD_IDS=${{ secrets.TRELLO_ALLOWED_BOARD_IDS }},INTERNAL_TOKEN=${{ secrets.INTERNAL_TOKEN }},PREVIEW_TOKEN_SECRET=${{ secrets.PREVIEW_TOKEN_SECRET }}"
+            --env-vars-file env-vars.yaml
