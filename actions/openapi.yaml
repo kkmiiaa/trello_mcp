@@ -227,12 +227,8 @@ paths:
     post:
       operationId: previewWrite
       summary: Preview write operations
-      parameters:
-        - name: X-Internal-Token
-          in: header
-          required: true
-          schema:
-            type: string
+      security:
+        - InternalTokenAuth: []
       requestBody:
         required: true
         content:
@@ -262,12 +258,8 @@ paths:
     post:
       operationId: commitWrite
       summary: Commit write operations
-      parameters:
-        - name: X-Internal-Token
-          in: header
-          required: true
-          schema:
-            type: string
+      security:
+        - InternalTokenAuth: []
       requestBody:
         required: true
         content:
@@ -294,6 +286,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 components:
+  securitySchemes:
+    InternalTokenAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
   schemas:
     PingResponse:
       type: object
