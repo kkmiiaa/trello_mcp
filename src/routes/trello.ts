@@ -33,13 +33,62 @@ const cardIdSchema = z.object({
 });
 
 const previewRequestSchema = z.object({
-  action: z.enum(["createCard", "addComment", "updateCard"]),
+  action: z.enum(["createCard", "addComment", "updateCard", "batch"]),
   payload: z.record(z.unknown())
 });
 
 const commitRequestSchema = z.object({
   commitToken: z.string().min(1)
 });
+
+const createCardPayloadSchema = z.object({
+  listId: z.string().min(1),
+  name: z.string().min(1),
+  desc: z.string().optional(),
+  due: z.string().nullable().optional(),
+  dueComplete: z.boolean().optional(),
+  labelIds: z.array(z.string()).optional()
+});
+
+const addCommentPayloadSchema = z.object({
+  cardId: z.string().min(1),
+  text: z.string().min(1)
+});
+
+const updateCardPayloadSchema = z.object({
+  cardId: z.string().min(1),
+  name: z.string().optional(),
+  desc: z.string().optional(),
+  due: z.string().nullable().optional(),
+  dueComplete: z.boolean().optional(),
+  closed: z.boolean().optional(),
+  listId: z.string().optional(),
+  labelIds: z.array(z.string()).optional()
+});
+
+const batchPayloadSchema = z.object({
+  operations: z.array(
+    z.object({
+      action: z.enum(["createCard", "addComment", "updateCard"]),
+      payload: z.record(z.unknown())
+    })
+  )
+});
+
+type WriteOperation =
+  | { action: "createCard"; payload: z.infer<typeof createCardPayloadSchema> }
+  | { action: "addComment"; payload: z.infer<typeof addCommentPayloadSchema> }
+  | { action: "updateCard"; payload: z.infer<typeof updateCardPayloadSchema> };
+
+const parseOperation = (action: WriteOperation["action"], payload: unknown): WriteOperation => {
+  if (action === "createCard") {
+    return { action, payload: createCardPayloadSchema.parse(payload) };
+  }
+  if (action === "addComment") {
+    return { action, payload: addCommentPayloadSchema.parse(payload) };
+  }
+  return { action, payload: updateCardPayloadSchema.parse(payload) };
+};
 
 const cardResponseSchema = {
   type: "object",
@@ -275,45 +324,41 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
       const { action, payload } = previewRequestSchema.parse(request.body);
 
       if (action === "createCard") {
-        const parsed = z
-          .object({
-            listId: z.string().min(1),
-            name: z.string().min(1),
-            desc: z.string().optional(),
-            due: z.string().nullable().optional(),
-            dueComplete: z.boolean().optional(),
-            labelIds: z.array(z.string()).optional()
-          })
-          .parse(payload);
-
+        const parsed = createCardPayloadSchema.parse(payload);
         const listInfo = await getListInfo(parsed.listId);
         ensureBoardAllowed(listInfo.idBoard);
         return toPreviewResponse(action, parsed);
       }
 
       if (action === "addComment") {
-        const parsed = z
-          .object({
-            cardId: z.string().min(1),
-            text: z.string().min(1)
-          })
-          .parse(payload);
+        const parsed = addCommentPayloadSchema.parse(payload);
         await getCard(parsed.cardId);
         return toPreviewResponse(action, parsed);
       }
 
-      const parsed = z
-        .object({
-          cardId: z.string().min(1),
-          name: z.string().optional(),
-          desc: z.string().optional(),
-          due: z.string().nullable().optional(),
-          dueComplete: z.boolean().optional(),
-          closed: z.boolean().optional(),
-          listId: z.string().optional(),
-          labelIds: z.array(z.string()).optional()
-        })
-        .parse(payload);
+      if (action === "batch") {
+        const parsed = batchPayloadSchema.parse(payload);
+        const operations = parsed.operations.map((operation) =>
+          parseOperation(operation.action, operation.payload)
+        );
+        for (const operation of operations) {
+          if (operation.action === "createCard") {
+            const listInfo = await getListInfo(operation.payload.listId);
+            ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "addComment") {
+            await getCard(operation.payload.cardId);
+          } else {
+            await getCard(operation.payload.cardId);
+            if (operation.payload.listId) {
+              const listInfo = await getListInfo(operation.payload.listId);
+              ensureBoardAllowed(listInfo.idBoard);
+            }
+          }
+        }
+        return toPreviewResponse(action, { operations });
+      }
+
+      const parsed = updateCardPayloadSchema.parse(payload);
       await getCard(parsed.cardId);
       if (parsed.listId) {
         const listInfo = await getListInfo(parsed.listId);
@@ -344,16 +389,7 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
       const tokenPayload = verifyPreviewToken(commitToken);
 
       if (tokenPayload.action === "createCard") {
-        const parsed = z
-          .object({
-            listId: z.string().min(1),
-            name: z.string().min(1),
-            desc: z.string().optional(),
-            due: z.string().nullable().optional(),
-            dueComplete: z.boolean().optional(),
-            labelIds: z.array(z.string()).optional()
-          })
-          .parse(tokenPayload.payload);
+        const parsed = createCardPayloadSchema.parse(tokenPayload.payload);
         const listInfo = await getListInfo(parsed.listId);
         ensureBoardAllowed(listInfo.idBoard);
         const result = await createCard(parsed);
@@ -361,29 +397,52 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
       }
 
       if (tokenPayload.action === "addComment") {
-        const parsed = z
-          .object({
-            cardId: z.string().min(1),
-            text: z.string().min(1)
-          })
-          .parse(tokenPayload.payload);
+        const parsed = addCommentPayloadSchema.parse(tokenPayload.payload);
         await getCard(parsed.cardId);
         const result = await addComment(parsed);
         return { action: tokenPayload.action, result };
       }
 
-      const parsed = z
-        .object({
-          cardId: z.string().min(1),
-          name: z.string().optional(),
-          desc: z.string().optional(),
-          due: z.string().nullable().optional(),
-          dueComplete: z.boolean().optional(),
-          closed: z.boolean().optional(),
-          listId: z.string().optional(),
-          labelIds: z.array(z.string()).optional()
-        })
-        .parse(tokenPayload.payload);
+      if (tokenPayload.action === "batch") {
+        const parsed = batchPayloadSchema.parse(tokenPayload.payload);
+        const operations = parsed.operations.map((operation) =>
+          parseOperation(operation.action, operation.payload)
+        );
+
+        for (const operation of operations) {
+          if (operation.action === "createCard") {
+            const listInfo = await getListInfo(operation.payload.listId);
+            ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "addComment") {
+            await getCard(operation.payload.cardId);
+          } else {
+            await getCard(operation.payload.cardId);
+            if (operation.payload.listId) {
+              const listInfo = await getListInfo(operation.payload.listId);
+              ensureBoardAllowed(listInfo.idBoard);
+            }
+          }
+        }
+
+        const results: Array<{ index: number; action: WriteOperation["action"]; result: unknown }> =
+          [];
+        for (const [index, operation] of operations.entries()) {
+          if (operation.action === "createCard") {
+            const result = await createCard(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else if (operation.action === "addComment") {
+            const result = await addComment(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else {
+            const result = await updateCard(operation.payload);
+            results.push({ index, action: operation.action, result });
+          }
+        }
+
+        return { action: tokenPayload.action, results };
+      }
+
+      const parsed = updateCardPayloadSchema.parse(tokenPayload.payload);
       await getCard(parsed.cardId);
       if (parsed.listId) {
         const listInfo = await getListInfo(parsed.listId);

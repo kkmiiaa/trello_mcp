@@ -125,6 +125,18 @@ curl -X POST http://localhost:3000/v1/trello/write/commit \\
   -d '{\"commitToken\":\"PREVIEW_TOKEN\"}'
 ```
 
+## バッチ書き込み
+
+複数操作をまとめて実行できます。`action: "batch"` で `operations` を渡してください。
+バッチは事前検証に通らない限り実行されませんが、実行中の失敗で一部完了する可能性があります。
+
+```bash
+curl -X POST http://localhost:3000/v1/trello/write/preview \\
+  -H "Content-Type: application/json" \\
+  -H "X-Internal-Token: YOUR_TOKEN" \\
+  -d '{\"action\":\"batch\",\"payload\":{\"operations\":[{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task 1\"}},{\"action\":\"addComment\",\"payload\":{\"cardId\":\"CARD_ID\",\"text\":\"Note\"}}]}}'
+```
+
 ## セキュリティ方針（概要）
 
 - Trello の API Key / Token はサーバ側で保持し、レスポンスやログに出しません。

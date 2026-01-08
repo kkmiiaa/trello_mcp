@@ -403,6 +403,13 @@ components:
         - createCard
         - addComment
         - updateCard
+        - batch
+    WriteOperationAction:
+      type: string
+      enum:
+        - createCard
+        - addComment
+        - updateCard
     CreateCardPayload:
       type: object
       properties:
@@ -460,6 +467,28 @@ components:
             type: string
       required:
         - cardId
+    BatchOperation:
+      type: object
+      properties:
+        action:
+          $ref: "#/components/schemas/WriteOperationAction"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/AddCommentPayload"
+            - $ref: "#/components/schemas/UpdateCardPayload"
+      required:
+        - action
+        - payload
+    BatchPayload:
+      type: object
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchOperation"
+      required:
+        - operations
     WritePreviewRequest:
       type: object
       properties:
@@ -470,6 +499,7 @@ components:
             - $ref: "#/components/schemas/CreateCardPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
+            - $ref: "#/components/schemas/BatchPayload"
       required:
         - action
         - payload
@@ -510,9 +540,25 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Card"
             - $ref: "#/components/schemas/Comment"
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              action:
+                $ref: "#/components/schemas/WriteAction"
+              result:
+                oneOf:
+                  - $ref: "#/components/schemas/Card"
+                  - $ref: "#/components/schemas/Comment"
+            required:
+              - index
+              - action
+              - result
       required:
         - action
-        - result
     ErrorResponse:
       type: object
       properties:

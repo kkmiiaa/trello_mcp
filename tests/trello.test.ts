@@ -232,6 +232,49 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("previews batch operations", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "batch",
+        payload: {
+          operations: [
+            { action: "createCard", payload: { listId: "list1", name: "Task 1" } },
+            { action: "createCard", payload: { listId: "list1", name: "Task 2" } }
+          ]
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.preview.action).toBe("batch");
+    expect(body.commitToken).toBeTypeOf("string");
+
+    await server.close();
+    mockAgent.close();
+  });
+
   it("commits createCard after preview", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
@@ -287,6 +330,68 @@ describe("Trello routes", () => {
       action: "createCard",
       result: cardFixture
     });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("commits batch createCard operations after preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards\\?.*$"),
+        method: "POST"
+      })
+      .reply(200, cardFixture)
+      .persist();
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const previewResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "batch",
+        payload: {
+          operations: [
+            { action: "createCard", payload: { listId: "list1", name: "Task 1" } },
+            { action: "createCard", payload: { listId: "list1", name: "Task 2" } }
+          ]
+        }
+      }
+    });
+    const { commitToken } = previewResponse.json();
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        commitToken
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    const commitBody = commitResponse.json();
+    expect(commitBody.action).toBe("batch");
+    expect(commitBody.results).toHaveLength(2);
 
     await server.close();
     mockAgent.close();
