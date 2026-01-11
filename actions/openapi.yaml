@@ -448,6 +448,8 @@ components:
         - addComment
         - updateCard
         - createList
+        - updateList
+        - updateBoard
         - batch
     WriteOperationAction:
       type: string
@@ -456,6 +458,8 @@ components:
         - addComment
         - updateCard
         - createList
+        - updateList
+        - updateBoard
     CreateCardPayload:
       type: object
       properties:
@@ -490,6 +494,32 @@ components:
       required:
         - boardId
         - name
+    UpdateListPayload:
+      type: object
+      properties:
+        listId:
+          type: string
+        name:
+          type: string
+        closed:
+          type: boolean
+        pos:
+          type: string
+      required:
+        - listId
+    UpdateBoardPayload:
+      type: object
+      properties:
+        boardId:
+          type: string
+        name:
+          type: string
+        desc:
+          type: string
+        closed:
+          type: boolean
+      required:
+        - boardId
     AddCommentPayload:
       type: object
       properties:
@@ -536,6 +566,8 @@ components:
             - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
+            - $ref: "#/components/schemas/UpdateListPayload"
+            - $ref: "#/components/schemas/UpdateBoardPayload"
       required:
         - action
         - payload
@@ -559,6 +591,8 @@ components:
             - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
+            - $ref: "#/components/schemas/UpdateListPayload"
+            - $ref: "#/components/schemas/UpdateBoardPayload"
             - $ref: "#/components/schemas/BatchPayload"
       required:
         - action
@@ -601,6 +635,7 @@ components:
             - $ref: "#/components/schemas/Card"
             - $ref: "#/components/schemas/List"
             - $ref: "#/components/schemas/Comment"
+            - $ref: "#/components/schemas/Board"
         results:
           type: array
           items:
@@ -615,6 +650,7 @@ components:
                   - $ref: "#/components/schemas/Card"
                   - $ref: "#/components/schemas/List"
                   - $ref: "#/components/schemas/Comment"
+                  - $ref: "#/components/schemas/Board"
             required:
               - index
               - action

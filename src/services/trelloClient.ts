@@ -197,6 +197,21 @@ export const createList = async (params: {
   return requestTrello<TrelloList>(`/boards/${params.boardId}/lists`, payload, "POST");
 };
 
+export const updateList = async (params: {
+  listId: string;
+  name?: string;
+  closed?: boolean;
+  pos?: string;
+}): Promise<TrelloList> => {
+  const listInfo = await getListInfo(params.listId);
+  ensureBoardAllowed(listInfo.idBoard);
+  const payload: Record<string, string> = {};
+  if (params.name !== undefined) payload.name = params.name;
+  if (params.closed !== undefined) payload.closed = String(params.closed);
+  if (params.pos !== undefined) payload.pos = params.pos;
+  return requestTrello<TrelloList>(`/lists/${params.listId}`, payload, "PUT");
+};
+
 export type TrelloComment = {
   id: string;
   cardId: string;
@@ -246,4 +261,18 @@ export const updateCard = async (params: {
   if (params.listId !== undefined) payload.idList = params.listId;
   if (params.labelIds !== undefined) payload.idLabels = params.labelIds.join(",");
   return requestTrello<TrelloCard>(`/cards/${params.cardId}`, payload, "PUT");
+};
+
+export const updateBoard = async (params: {
+  boardId: string;
+  name?: string;
+  desc?: string;
+  closed?: boolean;
+}): Promise<TrelloBoard> => {
+  ensureBoardAllowed(params.boardId);
+  const payload: Record<string, string> = {};
+  if (params.name !== undefined) payload.name = params.name;
+  if (params.desc !== undefined) payload.desc = params.desc;
+  if (params.closed !== undefined) payload.closed = String(params.closed);
+  return requestTrello<TrelloBoard>(`/boards/${params.boardId}`, payload, "PUT");
 };

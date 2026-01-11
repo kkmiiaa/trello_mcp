@@ -14,7 +14,9 @@ import {
   listCardsForBoard,
   listCardsForList,
   listLists,
-  updateCard
+  updateBoard,
+  updateCard,
+  updateList
 } from "../services/trelloClient.js";
 import {
   PreviewAction,
@@ -35,7 +37,15 @@ const cardIdSchema = z.object({
 });
 
 const previewRequestSchema = z.object({
-  action: z.enum(["createCard", "addComment", "updateCard", "createList", "batch"]),
+  action: z.enum([
+    "createCard",
+    "addComment",
+    "updateCard",
+    "createList",
+    "updateList",
+    "updateBoard",
+    "batch"
+  ]),
   payload: z.record(z.unknown())
 });
 
@@ -58,6 +68,20 @@ const createListPayloadSchema = z.object({
   pos: z.string().optional()
 });
 
+const updateListPayloadSchema = z.object({
+  listId: z.string().min(1),
+  name: z.string().optional(),
+  closed: z.boolean().optional(),
+  pos: z.string().optional()
+});
+
+const updateBoardPayloadSchema = z.object({
+  boardId: z.string().min(1),
+  name: z.string().optional(),
+  desc: z.string().optional(),
+  closed: z.boolean().optional()
+});
+
 const addCommentPayloadSchema = z.object({
   cardId: z.string().min(1),
   text: z.string().min(1)
@@ -77,7 +101,14 @@ const updateCardPayloadSchema = z.object({
 const batchPayloadSchema = z.object({
   operations: z.array(
     z.object({
-      action: z.enum(["createCard", "addComment", "updateCard", "createList"]),
+      action: z.enum([
+        "createCard",
+        "addComment",
+        "updateCard",
+        "createList",
+        "updateList",
+        "updateBoard"
+      ]),
       payload: z.record(z.unknown())
     })
   )
@@ -86,6 +117,8 @@ const batchPayloadSchema = z.object({
 type WriteOperation =
   | { action: "createCard"; payload: z.infer<typeof createCardPayloadSchema> }
   | { action: "createList"; payload: z.infer<typeof createListPayloadSchema> }
+  | { action: "updateList"; payload: z.infer<typeof updateListPayloadSchema> }
+  | { action: "updateBoard"; payload: z.infer<typeof updateBoardPayloadSchema> }
   | { action: "addComment"; payload: z.infer<typeof addCommentPayloadSchema> }
   | { action: "updateCard"; payload: z.infer<typeof updateCardPayloadSchema> };
 
@@ -95,6 +128,12 @@ const parseOperation = (action: WriteOperation["action"], payload: unknown): Wri
   }
   if (action === "createList") {
     return { action, payload: createListPayloadSchema.parse(payload) };
+  }
+  if (action === "updateList") {
+    return { action, payload: updateListPayloadSchema.parse(payload) };
+  }
+  if (action === "updateBoard") {
+    return { action, payload: updateBoardPayloadSchema.parse(payload) };
   }
   if (action === "addComment") {
     return { action, payload: addCommentPayloadSchema.parse(payload) };
@@ -383,6 +422,19 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return toPreviewResponse(action, parsed);
       }
 
+      if (action === "updateList") {
+        const parsed = updateListPayloadSchema.parse(payload);
+        const listInfo = await getListInfo(parsed.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+        return toPreviewResponse(action, parsed);
+      }
+
+      if (action === "updateBoard") {
+        const parsed = updateBoardPayloadSchema.parse(payload);
+        await getBoard(parsed.boardId);
+        return toPreviewResponse(action, parsed);
+      }
+
       if (action === "addComment") {
         const parsed = addCommentPayloadSchema.parse(payload);
         await getCard(parsed.cardId);
@@ -399,6 +451,11 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
           } else if (operation.action === "createList") {
+            await getBoard(operation.payload.boardId);
+          } else if (operation.action === "updateList") {
+            const listInfo = await getListInfo(operation.payload.listId);
+            ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "updateBoard") {
             await getBoard(operation.payload.boardId);
           } else if (operation.action === "addComment") {
             await getCard(operation.payload.cardId);
@@ -458,6 +515,19 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return { action: tokenPayload.action, result };
       }
 
+      if (tokenPayload.action === "updateList") {
+        const parsed = updateListPayloadSchema.parse(tokenPayload.payload);
+        const result = await updateList(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
+      if (tokenPayload.action === "updateBoard") {
+        const parsed = updateBoardPayloadSchema.parse(tokenPayload.payload);
+        await getBoard(parsed.boardId);
+        const result = await updateBoard(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
       if (tokenPayload.action === "addComment") {
         const parsed = addCommentPayloadSchema.parse(tokenPayload.payload);
         await getCard(parsed.cardId);
@@ -476,6 +546,11 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
           } else if (operation.action === "createList") {
+            await getBoard(operation.payload.boardId);
+          } else if (operation.action === "updateList") {
+            const listInfo = await getListInfo(operation.payload.listId);
+            ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "updateBoard") {
             await getBoard(operation.payload.boardId);
           } else if (operation.action === "addComment") {
             await getCard(operation.payload.cardId);
@@ -496,6 +571,12 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
             results.push({ index, action: operation.action, result });
           } else if (operation.action === "createList") {
             const result = await createList(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else if (operation.action === "updateList") {
+            const result = await updateList(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else if (operation.action === "updateBoard") {
+            const result = await updateBoard(operation.payload);
             results.push({ index, action: operation.action, result });
           } else if (operation.action === "addComment") {
             const result = await addComment(operation.payload);

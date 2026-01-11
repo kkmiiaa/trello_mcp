@@ -392,6 +392,144 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("commits updateList after preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "PUT"
+      })
+      .reply(200, { id: "list1", name: "Renamed", closed: false });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const previewResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "updateList",
+        payload: {
+          listId: "list1",
+          name: "Renamed"
+        }
+      }
+    });
+    const { commitToken } = previewResponse.json();
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        commitToken
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "updateList",
+      result: { id: "list1", name: "Renamed", closed: false }
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("commits updateBoard after preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, {
+        id: "allowed",
+        name: "Board 1",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/boards/allowed\\?.*$"),
+        method: "PUT"
+      })
+      .reply(200, {
+        id: "allowed",
+        name: "Board Renamed",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const previewResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "updateBoard",
+        payload: {
+          boardId: "allowed",
+          name: "Board Renamed"
+        }
+      }
+    });
+    const { commitToken } = previewResponse.json();
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        commitToken
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "updateBoard",
+      result: {
+        id: "allowed",
+        name: "Board Renamed",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      }
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
   it("commits createCard after preview", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
