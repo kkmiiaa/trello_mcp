@@ -122,6 +122,13 @@ export const listBoards = async (): Promise<TrelloBoard[]> => {
   return boards.filter((board) => allowed.has(board.id));
 };
 
+export const getBoard = async (boardId: string): Promise<TrelloBoard> => {
+  ensureBoardAllowed(boardId);
+  return requestTrello<TrelloBoard>(`/boards/${boardId}`, {
+    fields: "id,name,url,closed"
+  });
+};
+
 export const listLists = async (boardId: string): Promise<TrelloList[]> =>
   requestTrello<TrelloList[]>(`/boards/${boardId}/lists`, {
     fields: "id,name,closed"

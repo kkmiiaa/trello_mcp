@@ -6,6 +6,7 @@ ChatGPT Actions から利用できる Trello 操作用プロキシ API です。
 
 - `GET /v1/ping`
 - `GET /v1/trello/boards`
+- `GET /v1/trello/boards/:boardId`
 - `GET /v1/trello/boards/:boardId/lists`
 - `GET /v1/trello/boards/:boardId/cards`
 - `GET /v1/trello/lists/:listId/cards`
@@ -98,6 +99,7 @@ Cloud Run は `allow_unauthenticated: true` で公開されるため、必要に
 ```bash
 curl http://localhost:3000/v1/ping
 curl http://localhost:3000/v1/trello/boards
+curl http://localhost:3000/v1/trello/boards/{boardId}
 curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 ```
 

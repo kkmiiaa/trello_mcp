@@ -6,6 +6,7 @@ import {
   addComment,
   createCard,
   ensureBoardAllowed,
+  getBoard,
   getCard,
   getListInfo,
   listBoards,
@@ -163,6 +164,39 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
       }
     },
     async () => listBoards()
+  );
+
+  fastify.get(
+    "/v1/trello/boards/:boardId",
+    {
+      schema: {
+        description: "Get Trello board details",
+        tags: ["trello"],
+        params: {
+          type: "object",
+          properties: {
+            boardId: { type: "string" }
+          },
+          required: ["boardId"]
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              url: { type: "string" },
+              closed: { type: "boolean" }
+            },
+            required: ["id", "name", "url", "closed"]
+          }
+        }
+      }
+    },
+    async (request) => {
+      const { boardId } = boardIdSchema.parse(request.params);
+      return getBoard(boardId);
+    }
   );
 
   fastify.get(

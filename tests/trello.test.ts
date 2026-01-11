@@ -44,6 +44,37 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("returns board details for allowlisted board", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/boards/allowed?fields=id,name,url,closed&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, { id: "allowed", name: "Board 1", url: "https://trello.com/b1", closed: false });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed"
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/v1/trello/boards/allowed"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      id: "allowed",
+      name: "Board 1",
+      url: "https://trello.com/b1",
+      closed: false
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
   it("returns 403 for boardId outside allowlist", async () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
