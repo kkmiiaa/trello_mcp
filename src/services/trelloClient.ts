@@ -184,6 +184,19 @@ export const createCard = async (params: {
   return requestTrello<TrelloCard>("/cards", payload, "POST");
 };
 
+export const createList = async (params: {
+  boardId: string;
+  name: string;
+  pos?: string;
+}): Promise<TrelloList> => {
+  ensureBoardAllowed(params.boardId);
+  const payload: Record<string, string> = { name: params.name };
+  if (params.pos !== undefined) {
+    payload.pos = params.pos;
+  }
+  return requestTrello<TrelloList>(`/boards/${params.boardId}/lists`, payload, "POST");
+};
+
 export type TrelloComment = {
   id: string;
   cardId: string;

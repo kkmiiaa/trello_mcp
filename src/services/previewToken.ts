@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { AppError } from "../errors.js";
 import { config } from "../config.js";
 
-export type PreviewAction = "createCard" | "addComment" | "updateCard" | "batch";
+export type PreviewAction = "createCard" | "addComment" | "updateCard" | "createList" | "batch";
 
 export type PreviewPayload = {
   action: PreviewAction;

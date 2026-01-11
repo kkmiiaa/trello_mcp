@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import {
   addComment,
   createCard,
+  createList,
   ensureBoardAllowed,
   getBoard,
   getCard,
@@ -34,7 +35,7 @@ const cardIdSchema = z.object({
 });
 
 const previewRequestSchema = z.object({
-  action: z.enum(["createCard", "addComment", "updateCard", "batch"]),
+  action: z.enum(["createCard", "addComment", "updateCard", "createList", "batch"]),
   payload: z.record(z.unknown())
 });
 
@@ -49,6 +50,12 @@ const createCardPayloadSchema = z.object({
   due: z.string().nullable().optional(),
   dueComplete: z.boolean().optional(),
   labelIds: z.array(z.string()).optional()
+});
+
+const createListPayloadSchema = z.object({
+  boardId: z.string().min(1),
+  name: z.string().min(1),
+  pos: z.string().optional()
 });
 
 const addCommentPayloadSchema = z.object({
@@ -70,7 +77,7 @@ const updateCardPayloadSchema = z.object({
 const batchPayloadSchema = z.object({
   operations: z.array(
     z.object({
-      action: z.enum(["createCard", "addComment", "updateCard"]),
+      action: z.enum(["createCard", "addComment", "updateCard", "createList"]),
       payload: z.record(z.unknown())
     })
   )
@@ -78,12 +85,16 @@ const batchPayloadSchema = z.object({
 
 type WriteOperation =
   | { action: "createCard"; payload: z.infer<typeof createCardPayloadSchema> }
+  | { action: "createList"; payload: z.infer<typeof createListPayloadSchema> }
   | { action: "addComment"; payload: z.infer<typeof addCommentPayloadSchema> }
   | { action: "updateCard"; payload: z.infer<typeof updateCardPayloadSchema> };
 
 const parseOperation = (action: WriteOperation["action"], payload: unknown): WriteOperation => {
   if (action === "createCard") {
     return { action, payload: createCardPayloadSchema.parse(payload) };
+  }
+  if (action === "createList") {
+    return { action, payload: createListPayloadSchema.parse(payload) };
   }
   if (action === "addComment") {
     return { action, payload: addCommentPayloadSchema.parse(payload) };
@@ -366,6 +377,12 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return toPreviewResponse(action, parsed);
       }
 
+      if (action === "createList") {
+        const parsed = createListPayloadSchema.parse(payload);
+        await getBoard(parsed.boardId);
+        return toPreviewResponse(action, parsed);
+      }
+
       if (action === "addComment") {
         const parsed = addCommentPayloadSchema.parse(payload);
         await getCard(parsed.cardId);
@@ -381,6 +398,8 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
           if (operation.action === "createCard") {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "createList") {
+            await getBoard(operation.payload.boardId);
           } else if (operation.action === "addComment") {
             await getCard(operation.payload.cardId);
           } else {
@@ -432,6 +451,13 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return { action: tokenPayload.action, result };
       }
 
+      if (tokenPayload.action === "createList") {
+        const parsed = createListPayloadSchema.parse(tokenPayload.payload);
+        await getBoard(parsed.boardId);
+        const result = await createList(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
       if (tokenPayload.action === "addComment") {
         const parsed = addCommentPayloadSchema.parse(tokenPayload.payload);
         await getCard(parsed.cardId);
@@ -449,6 +475,8 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
           if (operation.action === "createCard") {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "createList") {
+            await getBoard(operation.payload.boardId);
           } else if (operation.action === "addComment") {
             await getCard(operation.payload.cardId);
           } else {
@@ -465,6 +493,9 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         for (const [index, operation] of operations.entries()) {
           if (operation.action === "createCard") {
             const result = await createCard(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else if (operation.action === "createList") {
+            const result = await createList(operation.payload);
             results.push({ index, action: operation.action, result });
           } else if (operation.action === "addComment") {
             const result = await addComment(operation.payload);

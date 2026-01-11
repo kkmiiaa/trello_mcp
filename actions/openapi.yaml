@@ -447,6 +447,7 @@ components:
         - createCard
         - addComment
         - updateCard
+        - createList
         - batch
     WriteOperationAction:
       type: string
@@ -454,6 +455,7 @@ components:
         - createCard
         - addComment
         - updateCard
+        - createList
     CreateCardPayload:
       type: object
       properties:
@@ -475,6 +477,18 @@ components:
             type: string
       required:
         - listId
+        - name
+    CreateListPayload:
+      type: object
+      properties:
+        boardId:
+          type: string
+        name:
+          type: string
+        pos:
+          type: string
+      required:
+        - boardId
         - name
     AddCommentPayload:
       type: object
@@ -519,6 +533,7 @@ components:
         payload:
           oneOf:
             - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
       required:
@@ -541,6 +556,7 @@ components:
         payload:
           oneOf:
             - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
             - $ref: "#/components/schemas/BatchPayload"
@@ -583,6 +599,7 @@ components:
         result:
           oneOf:
             - $ref: "#/components/schemas/Card"
+            - $ref: "#/components/schemas/List"
             - $ref: "#/components/schemas/Comment"
         results:
           type: array
@@ -596,6 +613,7 @@ components:
               result:
                 oneOf:
                   - $ref: "#/components/schemas/Card"
+                  - $ref: "#/components/schemas/List"
                   - $ref: "#/components/schemas/Comment"
             required:
               - index
