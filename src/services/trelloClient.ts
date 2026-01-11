@@ -72,6 +72,7 @@ const requestTrello = async <T>(
 export type TrelloBoard = {
   id: string;
   name: string;
+  desc: string;
   url: string;
   closed: boolean;
 };
@@ -111,7 +112,7 @@ export const ensureBoardAllowed = (boardId: string) => {
 
 export const listBoards = async (): Promise<TrelloBoard[]> => {
   const boards = await requestTrello<TrelloBoard[]>("/members/me/boards", {
-    fields: "id,name,url,closed"
+    fields: "id,name,desc,url,closed"
   });
 
   if (config.trello.allowedBoardIds.length === 0) {
@@ -125,7 +126,7 @@ export const listBoards = async (): Promise<TrelloBoard[]> => {
 export const getBoard = async (boardId: string): Promise<TrelloBoard> => {
   ensureBoardAllowed(boardId);
   return requestTrello<TrelloBoard>(`/boards/${boardId}`, {
-    fields: "id,name,url,closed"
+    fields: "id,name,desc,url,closed"
   });
 };
 

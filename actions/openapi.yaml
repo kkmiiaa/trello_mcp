@@ -354,6 +354,8 @@ components:
           type: string
         name:
           type: string
+        desc:
+          type: string
         url:
           type: string
         closed:
@@ -361,6 +363,7 @@ components:
       required:
         - id
         - name
+        - desc
         - url
         - closed
     List:

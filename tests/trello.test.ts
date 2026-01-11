@@ -20,13 +20,13 @@ describe("Trello routes", () => {
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
       .intercept({
-        path: "/1/members/me/boards?fields=id,name,url,closed&key=test-key&token=test-token",
+        path: "/1/members/me/boards?fields=id,name,desc,url,closed&key=test-key&token=test-token",
         method: "GET"
       })
       .reply(200, [
-        { id: "b1", name: "Board 1", url: "https://trello.com/b1", closed: false },
-        { id: "b2", name: "Board 2", url: "https://trello.com/b2", closed: false },
-        { id: "b3", name: "Board 3", url: "https://trello.com/b3", closed: false }
+        { id: "b1", name: "Board 1", desc: "Desc 1", url: "https://trello.com/b1", closed: false },
+        { id: "b2", name: "Board 2", desc: "Desc 2", url: "https://trello.com/b2", closed: false },
+        { id: "b3", name: "Board 3", desc: "Desc 3", url: "https://trello.com/b3", closed: false }
       ]);
 
     const server = await createServerWithEnv({
@@ -36,8 +36,8 @@ describe("Trello routes", () => {
     const response = await server.inject({ method: "GET", url: "/v1/trello/boards" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
-      { id: "b1", name: "Board 1", url: "https://trello.com/b1", closed: false },
-      { id: "b2", name: "Board 2", url: "https://trello.com/b2", closed: false }
+      { id: "b1", name: "Board 1", desc: "Desc 1", url: "https://trello.com/b1", closed: false },
+      { id: "b2", name: "Board 2", desc: "Desc 2", url: "https://trello.com/b2", closed: false }
     ]);
 
     await server.close();
@@ -49,10 +49,16 @@ describe("Trello routes", () => {
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
       .intercept({
-        path: "/1/boards/allowed?fields=id,name,url,closed&key=test-key&token=test-token",
+        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
         method: "GET"
       })
-      .reply(200, { id: "allowed", name: "Board 1", url: "https://trello.com/b1", closed: false });
+      .reply(200, {
+        id: "allowed",
+        name: "Board 1",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      });
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed"
@@ -67,6 +73,7 @@ describe("Trello routes", () => {
     expect(response.json()).toEqual({
       id: "allowed",
       name: "Board 1",
+      desc: "Board desc",
       url: "https://trello.com/b1",
       closed: false
     });
@@ -136,7 +143,7 @@ describe("Trello routes", () => {
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
       .intercept({
-        path: "/1/members/me/boards?fields=id,name,url,closed&key=test-key&token=test-token",
+        path: "/1/members/me/boards?fields=id,name,desc,url,closed&key=test-key&token=test-token",
         method: "GET"
       })
       .reply(429, { message: "rate limit" });

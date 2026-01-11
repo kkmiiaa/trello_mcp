@@ -154,10 +154,11 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
               properties: {
                 id: { type: "string" },
                 name: { type: "string" },
+                desc: { type: "string" },
                 url: { type: "string" },
                 closed: { type: "boolean" }
               },
-              required: ["id", "name", "url", "closed"]
+              required: ["id", "name", "desc", "url", "closed"]
             }
           }
         }
@@ -185,10 +186,11 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
             properties: {
               id: { type: "string" },
               name: { type: "string" },
+              desc: { type: "string" },
               url: { type: "string" },
               closed: { type: "boolean" }
             },
-            required: ["id", "name", "url", "closed"]
+            required: ["id", "name", "desc", "url", "closed"]
           }
         }
       }
