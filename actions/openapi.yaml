@@ -428,6 +428,23 @@ components:
         - dueComplete
         - closed
         - labels
+    Label:
+      type: object
+      properties:
+        id:
+          type: string
+        idBoard:
+          type: string
+        name:
+          type: string
+        color:
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - idBoard
+        - name
     Comment:
       type: object
       properties:
@@ -447,6 +464,7 @@ components:
         - createCard
         - addComment
         - updateCard
+        - createLabel
         - createList
         - updateList
         - updateBoard
@@ -457,6 +475,7 @@ components:
         - createCard
         - addComment
         - updateCard
+        - createLabel
         - createList
         - updateList
         - updateBoard
@@ -494,6 +513,19 @@ components:
       required:
         - boardId
         - name
+    CreateLabelPayload:
+      type: object
+      properties:
+        boardId:
+          type: string
+        name:
+          type: string
+        color:
+          type:
+            - string
+            - "null"
+      required:
+        - boardId
     UpdateListPayload:
       type: object
       properties:
@@ -563,6 +595,7 @@ components:
         payload:
           oneOf:
             - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/CreateLabelPayload"
             - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
@@ -588,6 +621,7 @@ components:
         payload:
           oneOf:
             - $ref: "#/components/schemas/CreateCardPayload"
+            - $ref: "#/components/schemas/CreateLabelPayload"
             - $ref: "#/components/schemas/CreateListPayload"
             - $ref: "#/components/schemas/AddCommentPayload"
             - $ref: "#/components/schemas/UpdateCardPayload"
@@ -633,6 +667,7 @@ components:
         result:
           oneOf:
             - $ref: "#/components/schemas/Card"
+            - $ref: "#/components/schemas/Label"
             - $ref: "#/components/schemas/List"
             - $ref: "#/components/schemas/Comment"
             - $ref: "#/components/schemas/Board"
@@ -648,6 +683,7 @@ components:
               result:
                 oneOf:
                   - $ref: "#/components/schemas/Card"
+                  - $ref: "#/components/schemas/Label"
                   - $ref: "#/components/schemas/List"
                   - $ref: "#/components/schemas/Comment"
                   - $ref: "#/components/schemas/Board"

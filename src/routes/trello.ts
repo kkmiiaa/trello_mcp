@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import {
   addComment,
   createCard,
+  createLabel,
   createList,
   ensureBoardAllowed,
   getBoard,
@@ -41,6 +42,7 @@ const previewRequestSchema = z.object({
     "createCard",
     "addComment",
     "updateCard",
+    "createLabel",
     "createList",
     "updateList",
     "updateBoard",
@@ -67,6 +69,16 @@ const createListPayloadSchema = z.object({
   name: z.string().min(1),
   pos: z.string().optional()
 });
+
+const createLabelPayloadSchema = z
+  .object({
+    boardId: z.string().min(1),
+    name: z.string().optional(),
+    color: z.string().nullable().optional()
+  })
+  .refine((payload) => payload.name !== undefined || payload.color !== undefined, {
+    message: "Either name or color must be provided"
+  });
 
 const updateListPayloadSchema = z.object({
   listId: z.string().min(1),
@@ -105,6 +117,7 @@ const batchPayloadSchema = z.object({
         "createCard",
         "addComment",
         "updateCard",
+        "createLabel",
         "createList",
         "updateList",
         "updateBoard"
@@ -116,6 +129,7 @@ const batchPayloadSchema = z.object({
 
 type WriteOperation =
   | { action: "createCard"; payload: z.infer<typeof createCardPayloadSchema> }
+  | { action: "createLabel"; payload: z.infer<typeof createLabelPayloadSchema> }
   | { action: "createList"; payload: z.infer<typeof createListPayloadSchema> }
   | { action: "updateList"; payload: z.infer<typeof updateListPayloadSchema> }
   | { action: "updateBoard"; payload: z.infer<typeof updateBoardPayloadSchema> }
@@ -128,6 +142,9 @@ const parseOperation = (action: WriteOperation["action"], payload: unknown): Wri
   }
   if (action === "createList") {
     return { action, payload: createListPayloadSchema.parse(payload) };
+  }
+  if (action === "createLabel") {
+    return { action, payload: createLabelPayloadSchema.parse(payload) };
   }
   if (action === "updateList") {
     return { action, payload: updateListPayloadSchema.parse(payload) };
@@ -422,6 +439,12 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return toPreviewResponse(action, parsed);
       }
 
+      if (action === "createLabel") {
+        const parsed = createLabelPayloadSchema.parse(payload);
+        await getBoard(parsed.boardId);
+        return toPreviewResponse(action, parsed);
+      }
+
       if (action === "updateList") {
         const parsed = updateListPayloadSchema.parse(payload);
         const listInfo = await getListInfo(parsed.listId);
@@ -450,6 +473,8 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
           if (operation.action === "createCard") {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "createLabel") {
+            await getBoard(operation.payload.boardId);
           } else if (operation.action === "createList") {
             await getBoard(operation.payload.boardId);
           } else if (operation.action === "updateList") {
@@ -515,6 +540,13 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         return { action: tokenPayload.action, result };
       }
 
+      if (tokenPayload.action === "createLabel") {
+        const parsed = createLabelPayloadSchema.parse(tokenPayload.payload);
+        await getBoard(parsed.boardId);
+        const result = await createLabel(parsed);
+        return { action: tokenPayload.action, result };
+      }
+
       if (tokenPayload.action === "updateList") {
         const parsed = updateListPayloadSchema.parse(tokenPayload.payload);
         const result = await updateList(parsed);
@@ -545,6 +577,8 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
           if (operation.action === "createCard") {
             const listInfo = await getListInfo(operation.payload.listId);
             ensureBoardAllowed(listInfo.idBoard);
+          } else if (operation.action === "createLabel") {
+            await getBoard(operation.payload.boardId);
           } else if (operation.action === "createList") {
             await getBoard(operation.payload.boardId);
           } else if (operation.action === "updateList") {
@@ -568,6 +602,9 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         for (const [index, operation] of operations.entries()) {
           if (operation.action === "createCard") {
             const result = await createCard(operation.payload);
+            results.push({ index, action: operation.action, result });
+          } else if (operation.action === "createLabel") {
+            const result = await createLabel(operation.payload);
             results.push({ index, action: operation.action, result });
           } else if (operation.action === "createList") {
             const result = await createList(operation.payload);

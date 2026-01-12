@@ -14,6 +14,12 @@ describe("Trello routes", () => {
     closed: false,
     labels: []
   };
+  const labelFixture = {
+    id: "label1",
+    idBoard: "allowed",
+    name: "Urgent",
+    color: "red"
+  };
 
   it("filters boards by allowlist", async () => {
     const mockAgent = setupMockAgent();
@@ -270,6 +276,53 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("previews createLabel with internal token", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, {
+        id: "allowed",
+        name: "Board 1",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      });
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createLabel",
+        payload: {
+          boardId: "allowed",
+          name: "Urgent",
+          color: "red"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.preview.action).toBe("createLabel");
+    expect(body.commitToken).toBeTypeOf("string");
+
+    await server.close();
+    mockAgent.close();
+  });
+
   it("previews batch operations", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
@@ -386,6 +439,73 @@ describe("Trello routes", () => {
     expect(commitResponse.json()).toEqual({
       action: "createList",
       result: { id: "list1", name: "List 1", closed: false }
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("commits createLabel after preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
+        method: "GET"
+      })
+      .reply(200, {
+        id: "allowed",
+        name: "Board 1",
+        desc: "Board desc",
+        url: "https://trello.com/b1",
+        closed: false
+      })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/labels\\?.*$"),
+        method: "POST"
+      })
+      .reply(200, labelFixture);
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token",
+      PREVIEW_TOKEN_SECRET: "preview-secret"
+    });
+
+    const previewResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/preview",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createLabel",
+        payload: {
+          boardId: "allowed",
+          name: "Urgent",
+          color: "red"
+        }
+      }
+    });
+    const { commitToken } = previewResponse.json();
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        commitToken
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "createLabel",
+      result: labelFixture
     });
 
     await server.close();

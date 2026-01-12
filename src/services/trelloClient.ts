@@ -96,6 +96,13 @@ export type TrelloCard = {
   labels: Array<{ id: string; name: string; color: string | null }>;
 };
 
+export type TrelloLabel = {
+  id: string;
+  idBoard: string;
+  name: string;
+  color: string | null;
+};
+
 type TrelloListInfo = {
   id: string;
   idBoard: string;
@@ -275,4 +282,16 @@ export const updateBoard = async (params: {
   if (params.desc !== undefined) payload.desc = params.desc;
   if (params.closed !== undefined) payload.closed = String(params.closed);
   return requestTrello<TrelloBoard>(`/boards/${params.boardId}`, payload, "PUT");
+};
+
+export const createLabel = async (params: {
+  boardId: string;
+  name?: string;
+  color?: string | null;
+}): Promise<TrelloLabel> => {
+  ensureBoardAllowed(params.boardId);
+  const payload: Record<string, string> = { idBoard: params.boardId };
+  if (params.name !== undefined) payload.name = params.name;
+  if (params.color !== undefined) payload.color = params.color ?? "";
+  return requestTrello<TrelloLabel>("/labels", payload, "POST");
 };

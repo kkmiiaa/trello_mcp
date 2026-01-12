@@ -108,7 +108,7 @@ curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 ## write 操作のプレビュー/コミット
 
 write 操作は 2 段階です。`X-Internal-Token` と `PREVIEW_TOKEN_SECRET` が必須です。
-`action` は `createCard` / `addComment` / `updateCard` / `createList` / `updateList` / `updateBoard` / `batch` を利用できます。
+`action` は `createCard` / `addComment` / `updateCard` / `createLabel` / `createList` / `updateList` / `updateBoard` / `batch` を利用できます。
 
 1. プレビュー
 

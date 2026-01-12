@@ -6,6 +6,7 @@ export type PreviewAction =
   | "createCard"
   | "addComment"
   | "updateCard"
+  | "createLabel"
   | "createList"
   | "updateList"
   | "updateBoard"
