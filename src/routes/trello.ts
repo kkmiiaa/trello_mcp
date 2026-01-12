@@ -14,6 +14,7 @@ import {
   listBoards,
   listCardsForBoard,
   listCardsForList,
+  listLabels,
   listLists,
   updateBoard,
   updateCard,
@@ -307,6 +308,49 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
       }
 
       return listLists(boardId);
+    }
+  );
+
+  fastify.get(
+    "/v1/trello/boards/:boardId/labels",
+    {
+      schema: {
+        description: "List Trello labels for a board",
+        tags: ["trello"],
+        params: {
+          type: "object",
+          properties: {
+            boardId: { type: "string" }
+          },
+          required: ["boardId"]
+        },
+        response: {
+          200: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                idBoard: { type: "string" },
+                name: { type: "string" },
+                color: { type: ["string", "null"] }
+              },
+              required: ["id", "idBoard", "name"]
+            }
+          }
+        }
+      }
+    },
+    async (request) => {
+      const { boardId } = boardIdSchema.parse(request.params);
+      if (
+        config.trello.allowedBoardIds.length > 0 &&
+        !config.trello.allowedBoardIds.includes(boardId)
+      ) {
+        throw new AppError("FORBIDDEN", "Board access is not allowed", 403);
+      }
+
+      return listLabels(boardId);
     }
   );
 

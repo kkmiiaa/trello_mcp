@@ -8,6 +8,7 @@ ChatGPT Actions から利用できる Trello 操作用プロキシ API です。
 - `GET /v1/trello/boards`
 - `GET /v1/trello/boards/:boardId`
 - `GET /v1/trello/boards/:boardId/lists`
+- `GET /v1/trello/boards/:boardId/labels`
 - `GET /v1/trello/boards/:boardId/cards`
 - `GET /v1/trello/lists/:listId/cards`
 - `GET /v1/trello/cards/:cardId`
