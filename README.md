@@ -39,7 +39,7 @@ npm run dev
 - `TRELLO_API_TOKEN`: Trello API Token
 - `TRELLO_ALLOWED_BOARD_IDS`: 許可する board ID をカンマ区切りで指定（未設定なら全ボード）
 - `INTERNAL_TOKEN`: 任意の簡易ガード用トークン（`X-Internal-Token` で検証）
-- `PREVIEW_TOKEN_SECRET`: write プレビュー用トークン署名キー（write で必須）
+- `PREVIEW_TOKEN_SECRET`: write プレビュー用トークン署名キー（プレビューを使う場合のみ）
 - `HOST` / `PORT`: バインド先
 - `TRELLO_BASE_URL`: Trello API Base URL（通常は変更不要）
 - `REQUEST_TIMEOUT_MS`: Trello API タイムアウト
@@ -108,10 +108,19 @@ curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 
 ## write 操作のプレビュー/コミット
 
-write 操作は 2 段階です。`X-Internal-Token` と `PREVIEW_TOKEN_SECRET` が必須です。
+write 操作は 2 通りです。`X-Internal-Token` は必須です。
 `action` は `createCard` / `addComment` / `updateCard` / `createLabel` / `createList` / `updateList` / `updateBoard` / `batch` を利用できます。
 
-1. プレビュー
+1. 直接コミット（プレビュー不要）
+
+```bash
+curl -X POST http://localhost:3000/v1/trello/write/commit \\
+  -H "Content-Type: application/json" \\
+  -H "X-Internal-Token: YOUR_TOKEN" \\
+  -d '{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task\"}}'
+```
+
+2. プレビュー → コミット（`PREVIEW_TOKEN_SECRET` が必要）
 
 ```bash
 curl -X POST http://localhost:3000/v1/trello/write/preview \\
@@ -120,7 +129,7 @@ curl -X POST http://localhost:3000/v1/trello/write/preview \\
   -d '{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task\"}}'
 ```
 
-2. コミット
+3. コミット
 
 ```bash
 curl -X POST http://localhost:3000/v1/trello/write/commit \\
@@ -128,6 +137,8 @@ curl -X POST http://localhost:3000/v1/trello/write/commit \\
   -H "X-Internal-Token: YOUR_TOKEN" \\
   -d '{\"commitToken\":\"PREVIEW_TOKEN\"}'
 ```
+
+`updateCard` / `updateList` の `closed` はアーカイブ（`true`）のみ許可されます。
 
 ## バッチ書き込み
 
@@ -146,4 +157,4 @@ curl -X POST http://localhost:3000/v1/trello/write/preview \\
 - Trello の API Key / Token はサーバ側で保持し、レスポンスやログに出しません。
 - allowlist による board ID 制限を read-only エンドポイントにも適用します。
 - レート制限や認証失敗は専用のエラーコードで返します。
-- write 操作は `X-Internal-Token` とプレビューコミットの 2 段階を必須にします。
+- write 操作は `X-Internal-Token` を必須にします。プレビューは任意です。

@@ -341,7 +341,7 @@ paths:
   /v1/trello/write/commit:
     post:
       operationId: commitWrite
-      summary: Commit write operations
+      summary: Commit write operations (direct or via preview token)
       x-openai-isConsequential: true
       security:
         - InternalTokenAuth: []
@@ -578,6 +578,8 @@ components:
           type: string
         closed:
           type: boolean
+          enum:
+            - true
         pos:
           type: string
       required:
@@ -622,6 +624,8 @@ components:
           type: boolean
         closed:
           type: boolean
+          enum:
+            - true
         listId:
           type: string
         labelIds:
@@ -696,12 +700,14 @@ components:
         - commitToken
         - expiresAt
     WriteCommitRequest:
-      type: object
-      properties:
-        commitToken:
-          type: string
-      required:
-        - commitToken
+      oneOf:
+        - type: object
+          properties:
+            commitToken:
+              type: string
+          required:
+            - commitToken
+        - $ref: "#/components/schemas/WritePreviewRequest"
     WriteCommitResponse:
       type: object
       properties:

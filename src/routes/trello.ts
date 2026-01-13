@@ -84,7 +84,7 @@ const createLabelPayloadSchema = z
 const updateListPayloadSchema = z.object({
   listId: z.string().min(1),
   name: z.string().optional(),
-  closed: z.boolean().optional(),
+  closed: z.literal(true).optional(),
   pos: z.string().optional()
 });
 
@@ -106,7 +106,7 @@ const updateCardPayloadSchema = z.object({
   desc: z.string().optional(),
   due: z.string().nullable().optional(),
   dueComplete: z.boolean().optional(),
-  closed: z.boolean().optional(),
+  closed: z.literal(true).optional(),
   listId: z.string().optional(),
   labelIds: z.array(z.string()).optional()
 });
@@ -205,6 +205,118 @@ const toPreviewResponse = (action: PreviewAction, payload: Record<string, unknow
     commitToken: token,
     expiresAt: new Date(exp).toISOString()
   };
+};
+
+const commitWriteOperation = async (action: PreviewAction, payload: Record<string, unknown>) => {
+  if (action === "createCard") {
+    const parsed = createCardPayloadSchema.parse(payload);
+    const listInfo = await getListInfo(parsed.listId);
+    ensureBoardAllowed(listInfo.idBoard);
+    const result = await createCard(parsed);
+    return { action, result };
+  }
+
+  if (action === "createList") {
+    const parsed = createListPayloadSchema.parse(payload);
+    await getBoard(parsed.boardId);
+    const result = await createList(parsed);
+    return { action, result };
+  }
+
+  if (action === "createLabel") {
+    const parsed = createLabelPayloadSchema.parse(payload);
+    await getBoard(parsed.boardId);
+    const result = await createLabel(parsed);
+    return { action, result };
+  }
+
+  if (action === "updateList") {
+    const parsed = updateListPayloadSchema.parse(payload);
+    const result = await updateList(parsed);
+    return { action, result };
+  }
+
+  if (action === "updateBoard") {
+    const parsed = updateBoardPayloadSchema.parse(payload);
+    await getBoard(parsed.boardId);
+    const result = await updateBoard(parsed);
+    return { action, result };
+  }
+
+  if (action === "addComment") {
+    const parsed = addCommentPayloadSchema.parse(payload);
+    await getCard(parsed.cardId);
+    const result = await addComment(parsed);
+    return { action, result };
+  }
+
+  if (action === "batch") {
+    const parsed = batchPayloadSchema.parse(payload);
+    const operations = parsed.operations.map((operation) =>
+      parseOperation(operation.action, operation.payload)
+    );
+
+    for (const operation of operations) {
+      if (operation.action === "createCard") {
+        const listInfo = await getListInfo(operation.payload.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+      } else if (operation.action === "createLabel") {
+        await getBoard(operation.payload.boardId);
+      } else if (operation.action === "createList") {
+        await getBoard(operation.payload.boardId);
+      } else if (operation.action === "updateList") {
+        const listInfo = await getListInfo(operation.payload.listId);
+        ensureBoardAllowed(listInfo.idBoard);
+      } else if (operation.action === "updateBoard") {
+        await getBoard(operation.payload.boardId);
+      } else if (operation.action === "addComment") {
+        await getCard(operation.payload.cardId);
+      } else {
+        await getCard(operation.payload.cardId);
+        if (operation.payload.listId) {
+          const listInfo = await getListInfo(operation.payload.listId);
+          ensureBoardAllowed(listInfo.idBoard);
+        }
+      }
+    }
+
+    const results: Array<{ index: number; action: WriteOperation["action"]; result: unknown }> = [];
+    for (const [index, operation] of operations.entries()) {
+      if (operation.action === "createCard") {
+        const result = await createCard(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "createLabel") {
+        const result = await createLabel(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "createList") {
+        const result = await createList(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "updateList") {
+        const result = await updateList(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "updateBoard") {
+        const result = await updateBoard(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "addComment") {
+        const result = await addComment(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else {
+        const result = await updateCard(operation.payload);
+        results.push({ index, action: operation.action, result });
+      }
+    }
+
+    return { action, results };
+  }
+
+  const parsed = updateCardPayloadSchema.parse(payload);
+  await getCard(parsed.cardId);
+  if (parsed.listId) {
+    const listInfo = await getListInfo(parsed.listId);
+    ensureBoardAllowed(listInfo.idBoard);
+  }
+  const result = await updateCard(parsed);
+  return { action, result };
 };
 
 export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
@@ -556,129 +668,36 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
         description: "Commit Trello write operations",
         tags: ["trello"],
         body: {
-          type: "object",
-          properties: {
-            commitToken: { type: "string" }
-          },
-          required: ["commitToken"]
+          oneOf: [
+            {
+              type: "object",
+              properties: {
+                commitToken: { type: "string" }
+              },
+              required: ["commitToken"]
+            },
+            {
+              type: "object",
+              properties: {
+                action: { type: "string" },
+                payload: { type: "object", additionalProperties: true }
+              },
+              required: ["action", "payload"]
+            }
+          ]
         }
       }
     },
     async (request) => {
       requireWriteToken(request);
-      const { commitToken } = commitRequestSchema.parse(request.body);
-      const tokenPayload = verifyPreviewToken(commitToken);
-
-      if (tokenPayload.action === "createCard") {
-        const parsed = createCardPayloadSchema.parse(tokenPayload.payload);
-        const listInfo = await getListInfo(parsed.listId);
-        ensureBoardAllowed(listInfo.idBoard);
-        const result = await createCard(parsed);
-        return { action: tokenPayload.action, result };
+      const commitTokenResult = commitRequestSchema.safeParse(request.body);
+      if (commitTokenResult.success) {
+        const tokenPayload = verifyPreviewToken(commitTokenResult.data.commitToken);
+        return commitWriteOperation(tokenPayload.action, tokenPayload.payload);
       }
 
-      if (tokenPayload.action === "createList") {
-        const parsed = createListPayloadSchema.parse(tokenPayload.payload);
-        await getBoard(parsed.boardId);
-        const result = await createList(parsed);
-        return { action: tokenPayload.action, result };
-      }
-
-      if (tokenPayload.action === "createLabel") {
-        const parsed = createLabelPayloadSchema.parse(tokenPayload.payload);
-        await getBoard(parsed.boardId);
-        const result = await createLabel(parsed);
-        return { action: tokenPayload.action, result };
-      }
-
-      if (tokenPayload.action === "updateList") {
-        const parsed = updateListPayloadSchema.parse(tokenPayload.payload);
-        const result = await updateList(parsed);
-        return { action: tokenPayload.action, result };
-      }
-
-      if (tokenPayload.action === "updateBoard") {
-        const parsed = updateBoardPayloadSchema.parse(tokenPayload.payload);
-        await getBoard(parsed.boardId);
-        const result = await updateBoard(parsed);
-        return { action: tokenPayload.action, result };
-      }
-
-      if (tokenPayload.action === "addComment") {
-        const parsed = addCommentPayloadSchema.parse(tokenPayload.payload);
-        await getCard(parsed.cardId);
-        const result = await addComment(parsed);
-        return { action: tokenPayload.action, result };
-      }
-
-      if (tokenPayload.action === "batch") {
-        const parsed = batchPayloadSchema.parse(tokenPayload.payload);
-        const operations = parsed.operations.map((operation) =>
-          parseOperation(operation.action, operation.payload)
-        );
-
-        for (const operation of operations) {
-          if (operation.action === "createCard") {
-            const listInfo = await getListInfo(operation.payload.listId);
-            ensureBoardAllowed(listInfo.idBoard);
-          } else if (operation.action === "createLabel") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "createList") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "updateList") {
-            const listInfo = await getListInfo(operation.payload.listId);
-            ensureBoardAllowed(listInfo.idBoard);
-          } else if (operation.action === "updateBoard") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "addComment") {
-            await getCard(operation.payload.cardId);
-          } else {
-            await getCard(operation.payload.cardId);
-            if (operation.payload.listId) {
-              const listInfo = await getListInfo(operation.payload.listId);
-              ensureBoardAllowed(listInfo.idBoard);
-            }
-          }
-        }
-
-        const results: Array<{ index: number; action: WriteOperation["action"]; result: unknown }> =
-          [];
-        for (const [index, operation] of operations.entries()) {
-          if (operation.action === "createCard") {
-            const result = await createCard(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else if (operation.action === "createLabel") {
-            const result = await createLabel(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else if (operation.action === "createList") {
-            const result = await createList(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else if (operation.action === "updateList") {
-            const result = await updateList(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else if (operation.action === "updateBoard") {
-            const result = await updateBoard(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else if (operation.action === "addComment") {
-            const result = await addComment(operation.payload);
-            results.push({ index, action: operation.action, result });
-          } else {
-            const result = await updateCard(operation.payload);
-            results.push({ index, action: operation.action, result });
-          }
-        }
-
-        return { action: tokenPayload.action, results };
-      }
-
-      const parsed = updateCardPayloadSchema.parse(tokenPayload.payload);
-      await getCard(parsed.cardId);
-      if (parsed.listId) {
-        const listInfo = await getListInfo(parsed.listId);
-        ensureBoardAllowed(listInfo.idBoard);
-      }
-      const result = await updateCard(parsed);
-      return { action: tokenPayload.action, result };
+      const { action, payload } = previewRequestSchema.parse(request.body);
+      return commitWriteOperation(action, payload);
     }
   );
 };

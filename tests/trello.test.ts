@@ -710,6 +710,86 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("commits createCard directly without preview", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards\\?.*$"),
+        method: "POST"
+      })
+      .reply(200, cardFixture);
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token"
+    });
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createCard",
+        payload: {
+          listId: "list1",
+          name: "Task"
+        }
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "createCard",
+      result: cardFixture
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
+  it("rejects unarchiving cards or lists", async () => {
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "updateList",
+        payload: {
+          listId: "list1",
+          closed: false
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Invalid request",
+        details: expect.any(Object)
+      }
+    });
+
+    await server.close();
+  });
+
   it("commits batch createCard operations after preview", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
