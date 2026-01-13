@@ -53,6 +53,7 @@ const createCardPayloadSchema = z.object({
   listId: z.string().min(1),
   name: z.string().min(1),
   desc: z.string().optional(),
+  urlSource: z.string().min(1).optional(),
   due: z.string().nullable().optional(),
   dueComplete: z.boolean().optional(),
   labelIds: z.array(z.string()).optional()

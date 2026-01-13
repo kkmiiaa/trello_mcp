@@ -108,6 +108,7 @@ curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 
 write 操作は `X-Internal-Token` が必須です。
 `action` は `createCard` / `addComment` / `updateCard` / `createLabel` / `createList` / `updateList` / `updateBoard` / `batch` を利用できます。
+`createCard` では `urlSource` を指定するとリンクカードを作成できます。
 
 ```bash
 curl -X POST http://localhost:3000/v1/trello/write/commit \\
