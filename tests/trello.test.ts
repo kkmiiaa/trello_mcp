@@ -492,6 +492,53 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("commits createLinkCard", async () => {
+    const mockAgent = setupMockAgent();
+    const trelloMock = mockAgent.get("https://api.trello.com");
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/lists/list1\\?.*$"),
+        method: "GET"
+      })
+      .reply(200, { id: "list1", idBoard: "allowed" })
+      .persist();
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards\\?.*$"),
+        method: "POST"
+      })
+      .reply(200, cardFixture);
+
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token"
+    });
+
+    const commitResponse = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createLinkCard",
+        payload: {
+          listId: "list1",
+          urlSource: "https://trello.com/c1"
+        }
+      }
+    });
+
+    expect(commitResponse.statusCode).toBe(200);
+    expect(commitResponse.json()).toEqual({
+      action: "createLinkCard",
+      result: cardFixture
+    });
+
+    await server.close();
+    mockAgent.close();
+  });
+
   it("rejects unarchiving cards or lists", async () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",

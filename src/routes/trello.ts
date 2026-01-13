@@ -36,6 +36,7 @@ const cardIdSchema = z.object({
 const writeRequestSchema = z.object({
   action: z.enum([
     "createCard",
+    "createLinkCard",
     "addComment",
     "updateCard",
     "createLabel",
@@ -53,11 +54,24 @@ const createCardPayloadSchema = z.object({
   listId: z.string().min(1),
   name: z.string().min(1),
   desc: z.string().optional(),
-  urlSource: z.string().min(1).optional(),
   due: z.string().nullable().optional(),
   dueComplete: z.boolean().optional(),
   labelIds: z.array(z.string()).optional()
 });
+
+const createLinkCardPayloadSchema = z
+  .object({
+    listId: z.string().min(1),
+    urlSource: z.string().min(1),
+    name: z.string().min(1).optional(),
+    desc: z.string().optional(),
+    due: z.string().nullable().optional(),
+    dueComplete: z.boolean().optional(),
+    labelIds: z.array(z.string()).optional()
+  })
+  .refine((payload) => payload.name !== undefined || payload.urlSource !== undefined, {
+    message: "Either name or urlSource must be provided"
+  });
 
 const createListPayloadSchema = z.object({
   boardId: z.string().min(1),
@@ -110,6 +124,7 @@ const batchPayloadSchema = z.object({
     z.object({
       action: z.enum([
         "createCard",
+        "createLinkCard",
         "addComment",
         "updateCard",
         "createLabel",
@@ -124,6 +139,7 @@ const batchPayloadSchema = z.object({
 
 type WriteOperation =
   | { action: "createCard"; payload: z.infer<typeof createCardPayloadSchema> }
+  | { action: "createLinkCard"; payload: z.infer<typeof createLinkCardPayloadSchema> }
   | { action: "createLabel"; payload: z.infer<typeof createLabelPayloadSchema> }
   | { action: "createList"; payload: z.infer<typeof createListPayloadSchema> }
   | { action: "updateList"; payload: z.infer<typeof updateListPayloadSchema> }
@@ -134,6 +150,9 @@ type WriteOperation =
 const parseOperation = (action: WriteOperation["action"], payload: unknown): WriteOperation => {
   if (action === "createCard") {
     return { action, payload: createCardPayloadSchema.parse(payload) };
+  }
+  if (action === "createLinkCard") {
+    return { action, payload: createLinkCardPayloadSchema.parse(payload) };
   }
   if (action === "createList") {
     return { action, payload: createListPayloadSchema.parse(payload) };
@@ -200,6 +219,15 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     return { action, result };
   }
 
+  if (action === "createLinkCard") {
+    const parsed = createLinkCardPayloadSchema.parse(payload);
+    const listInfo = await getListInfo(parsed.listId);
+    ensureBoardAllowed(listInfo.idBoard);
+    const name = parsed.name ?? parsed.urlSource;
+    const result = await createCard({ ...parsed, name });
+    return { action, result };
+  }
+
   if (action === "createList") {
     const parsed = createListPayloadSchema.parse(payload);
     await getBoard(parsed.boardId);
@@ -241,7 +269,7 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     );
 
     for (const operation of operations) {
-      if (operation.action === "createCard") {
+      if (operation.action === "createCard" || operation.action === "createLinkCard") {
         const listInfo = await getListInfo(operation.payload.listId);
         ensureBoardAllowed(listInfo.idBoard);
       } else if (operation.action === "createLabel") {
@@ -268,6 +296,10 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     for (const [index, operation] of operations.entries()) {
       if (operation.action === "createCard") {
         const result = await createCard(operation.payload);
+        results.push({ index, action: operation.action, result });
+      } else if (operation.action === "createLinkCard") {
+        const name = operation.payload.name ?? operation.payload.urlSource;
+        const result = await createCard({ ...operation.payload, name });
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLabel") {
         const result = await createLabel(operation.payload);
