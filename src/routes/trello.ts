@@ -216,8 +216,7 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     const parsed = createLinkCardPayloadSchema.parse(payload);
     const listInfo = await getListInfo(parsed.listId);
     ensureBoardAllowed(listInfo.idBoard);
-    const name = parsed.urlSource;
-    const result = await createCard({ ...parsed, name });
+    const result = await createCard({ listId: parsed.listId, name: parsed.urlSource });
     return { action, result };
   }
 
@@ -291,8 +290,10 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
         const result = await createCard(operation.payload);
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLinkCard") {
-        const name = operation.payload.urlSource;
-        const result = await createCard({ ...operation.payload, name });
+        const result = await createCard({
+          listId: operation.payload.listId,
+          name: operation.payload.urlSource
+        });
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLabel") {
         const result = await createLabel(operation.payload);
