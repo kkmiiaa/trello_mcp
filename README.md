@@ -12,7 +12,6 @@ ChatGPT Actions から利用できる Trello 操作用プロキシ API です。
 - `GET /v1/trello/boards/:boardId/cards`
 - `GET /v1/trello/lists/:listId/cards`
 - `GET /v1/trello/cards/:cardId`
-- `POST /v1/trello/write/preview`
 - `POST /v1/trello/write/commit`
 
 ## 事前準備
@@ -39,7 +38,6 @@ npm run dev
 - `TRELLO_API_TOKEN`: Trello API Token
 - `TRELLO_ALLOWED_BOARD_IDS`: 許可する board ID をカンマ区切りで指定（未設定なら全ボード）
 - `INTERNAL_TOKEN`: 任意の簡易ガード用トークン（`X-Internal-Token` で検証）
-- `PREVIEW_TOKEN_SECRET`: write プレビュー用トークン署名キー（プレビューを使う場合のみ）
 - `HOST` / `PORT`: バインド先
 - `TRELLO_BASE_URL`: Trello API Base URL（通常は変更不要）
 - `REQUEST_TIMEOUT_MS`: Trello API タイムアウト
@@ -106,36 +104,16 @@ curl http://localhost:3000/v1/trello/boards/{boardId}/lists
 
 `INTERNAL_TOKEN` を設定している場合はヘッダに `X-Internal-Token` を付与してください。
 
-## write 操作のプレビュー/コミット
+## write 操作のコミット
 
-write 操作は 2 通りです。`X-Internal-Token` は必須です。
+write 操作は `X-Internal-Token` が必須です。
 `action` は `createCard` / `addComment` / `updateCard` / `createLabel` / `createList` / `updateList` / `updateBoard` / `batch` を利用できます。
 
-1. 直接コミット（プレビュー不要）
-
 ```bash
 curl -X POST http://localhost:3000/v1/trello/write/commit \\
   -H "Content-Type: application/json" \\
   -H "X-Internal-Token: YOUR_TOKEN" \\
   -d '{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task\"}}'
-```
-
-2. プレビュー → コミット（`PREVIEW_TOKEN_SECRET` が必要）
-
-```bash
-curl -X POST http://localhost:3000/v1/trello/write/preview \\
-  -H "Content-Type: application/json" \\
-  -H "X-Internal-Token: YOUR_TOKEN" \\
-  -d '{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task\"}}'
-```
-
-3. コミット
-
-```bash
-curl -X POST http://localhost:3000/v1/trello/write/commit \\
-  -H "Content-Type: application/json" \\
-  -H "X-Internal-Token: YOUR_TOKEN" \\
-  -d '{\"commitToken\":\"PREVIEW_TOKEN\"}'
 ```
 
 `updateCard` / `updateList` の `closed` はアーカイブ（`true`）のみ許可されます。
@@ -143,10 +121,10 @@ curl -X POST http://localhost:3000/v1/trello/write/commit \\
 ## バッチ書き込み
 
 複数操作をまとめて実行できます。`action: "batch"` で `operations` を渡してください。
-バッチは事前検証に通らない限り実行されませんが、実行中の失敗で一部完了する可能性があります。
+実行中の失敗で一部完了する可能性があります。
 
 ```bash
-curl -X POST http://localhost:3000/v1/trello/write/preview \\
+curl -X POST http://localhost:3000/v1/trello/write/commit \\
   -H "Content-Type: application/json" \\
   -H "X-Internal-Token: YOUR_TOKEN" \\
   -d '{\"action\":\"batch\",\"payload\":{\"operations\":[{\"action\":\"createCard\",\"payload\":{\"listId\":\"LIST_ID\",\"name\":\"Task 1\"}},{\"action\":\"addComment\",\"payload\":{\"cardId\":\"CARD_ID\",\"text\":\"Note\"}}]}}'
@@ -157,4 +135,4 @@ curl -X POST http://localhost:3000/v1/trello/write/preview \\
 - Trello の API Key / Token はサーバ側で保持し、レスポンスやログに出しません。
 - allowlist による board ID 制限を read-only エンドポイントにも適用します。
 - レート制限や認証失敗は専用のエラーコードで返します。
-- write 操作は `X-Internal-Token` を必須にします。プレビューは任意です。
+- write 操作は `X-Internal-Token` を必須にします。

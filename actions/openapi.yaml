@@ -307,41 +307,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /v1/trello/write/preview:
-    post:
-      operationId: previewWrite
-      summary: Preview write operations
-      security:
-        - InternalTokenAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/WritePreviewRequest"
-      responses:
-        "200":
-          description: Preview response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WritePreviewResponse"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /v1/trello/write/commit:
     post:
       operationId: commitWrite
-      summary: Commit write operations (direct or via preview token)
+      summary: Commit write operations
       x-openai-isConsequential: true
       security:
         - InternalTokenAuth: []
@@ -660,7 +629,7 @@ components:
             $ref: "#/components/schemas/BatchOperation"
       required:
         - operations
-    WritePreviewRequest:
+    WriteCommitRequest:
       type: object
       properties:
         action:
@@ -678,36 +647,6 @@ components:
       required:
         - action
         - payload
-    WritePreviewResponse:
-      type: object
-      properties:
-        preview:
-          type: object
-          properties:
-            action:
-              $ref: "#/components/schemas/WriteAction"
-            payload:
-              type: object
-          required:
-            - action
-            - payload
-        commitToken:
-          type: string
-        expiresAt:
-          type: string
-      required:
-        - preview
-        - commitToken
-        - expiresAt
-    WriteCommitRequest:
-      oneOf:
-        - type: object
-          properties:
-            commitToken:
-              type: string
-          required:
-            - commitToken
-        - $ref: "#/components/schemas/WritePreviewRequest"
     WriteCommitResponse:
       type: object
       properties:

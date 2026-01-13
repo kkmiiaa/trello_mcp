@@ -11,7 +11,6 @@ const envSchema = z.object({
   SERVICE_NAME: z.string().default("trello-actions-proxy"),
   SERVICE_VERSION: z.string().default("0.1.0"),
   INTERNAL_TOKEN: z.string().optional(),
-  PREVIEW_TOKEN_SECRET: z.string().optional(),
   TRELLO_API_KEY: z.string().min(1, "TRELLO_API_KEY is required"),
   TRELLO_API_TOKEN: z.string().min(1, "TRELLO_API_TOKEN is required"),
   TRELLO_ALLOWED_BOARD_IDS: z.string().optional(),
@@ -39,7 +38,6 @@ export const config = {
   serviceName: parsed.data.SERVICE_NAME,
   serviceVersion: parsed.data.SERVICE_VERSION,
   internalToken: parsed.data.INTERNAL_TOKEN,
-  previewTokenSecret: parsed.data.PREVIEW_TOKEN_SECRET,
   trello: {
     apiKey: parsed.data.TRELLO_API_KEY,
     apiToken: parsed.data.TRELLO_API_TOKEN,

@@ -92,7 +92,6 @@ describe("Trello routes", () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
       INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -124,7 +123,6 @@ describe("Trello routes", () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
       INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -182,7 +180,6 @@ describe("Trello routes", () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
       INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -215,7 +212,6 @@ describe("Trello routes", () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
       INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
     });
 
     const response = await server.inject({
@@ -230,156 +226,7 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("previews createCard with internal token", async () => {
-    const mockAgent = setupMockAgent();
-    const trelloMock = mockAgent.get("https://api.trello.com");
-    trelloMock
-      .intercept({
-        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
-        method: "GET"
-      })
-      .reply(200, { id: "list1", idBoard: "allowed" });
-    trelloMock
-      .intercept({
-        path: "/1/lists/list1?fields=id,idBoard&key=test-key&token=test-token",
-        method: "GET"
-      })
-      .reply(200, { id: "list1", idBoard: "allowed" });
-
-    const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
-    });
-
-    const response = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/preview",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        action: "createCard",
-        payload: {
-          listId: "list1",
-          name: "Task"
-        }
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.preview.action).toBe("createCard");
-    expect(body.commitToken).toBeTypeOf("string");
-
-    await server.close();
-    mockAgent.close();
-  });
-
-  it("previews createLabel with internal token", async () => {
-    const mockAgent = setupMockAgent();
-    const trelloMock = mockAgent.get("https://api.trello.com");
-    trelloMock
-      .intercept({
-        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
-        method: "GET"
-      })
-      .reply(200, {
-        id: "allowed",
-        name: "Board 1",
-        desc: "Board desc",
-        url: "https://trello.com/b1",
-        closed: false
-      });
-
-    const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
-    });
-
-    const response = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/preview",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        action: "createLabel",
-        payload: {
-          boardId: "allowed",
-          name: "Urgent",
-          color: "red"
-        }
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.preview.action).toBe("createLabel");
-    expect(body.commitToken).toBeTypeOf("string");
-
-    await server.close();
-    mockAgent.close();
-  });
-
-  it("previews batch operations", async () => {
-    const mockAgent = setupMockAgent();
-    const trelloMock = mockAgent.get("https://api.trello.com");
-    trelloMock
-      .intercept({
-        path: new RegExp("^/1/lists/list1\\?.*$"),
-        method: "GET"
-      })
-      .reply(200, { id: "list1", idBoard: "allowed" })
-      .persist();
-    trelloMock
-      .intercept({
-        path: "/1/boards/allowed?fields=id,name,desc,url,closed&key=test-key&token=test-token",
-        method: "GET"
-      })
-      .reply(200, {
-        id: "allowed",
-        name: "Board 1",
-        desc: "Board desc",
-        url: "https://trello.com/b1",
-        closed: false
-      })
-      .persist();
-
-    const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
-    });
-
-    const response = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/preview",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        action: "batch",
-        payload: {
-          operations: [
-            { action: "createList", payload: { boardId: "allowed", name: "List 1" } },
-            { action: "createCard", payload: { listId: "list1", name: "Task 1" } }
-          ]
-        }
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.preview.action).toBe("batch");
-    expect(body.commitToken).toBeTypeOf("string");
-
-    await server.close();
-    mockAgent.close();
-  });
-
-  it("commits createList after preview", async () => {
+  it("commits createList", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -404,13 +251,12 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
+      INTERNAL_TOKEN: "internal-token"
     });
 
-    const previewResponse = await server.inject({
+    const commitResponse = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       headers: {
         "x-internal-token": "internal-token"
       },
@@ -420,18 +266,6 @@ describe("Trello routes", () => {
           boardId: "allowed",
           name: "List 1"
         }
-      }
-    });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
       }
     });
 
@@ -445,7 +279,7 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("commits createLabel after preview", async () => {
+  it("commits createLabel", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -470,13 +304,12 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
+      INTERNAL_TOKEN: "internal-token"
     });
 
-    const previewResponse = await server.inject({
+    const commitResponse = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       headers: {
         "x-internal-token": "internal-token"
       },
@@ -487,18 +320,6 @@ describe("Trello routes", () => {
           name: "Urgent",
           color: "red"
         }
-      }
-    });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
       }
     });
 
@@ -512,7 +333,7 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("commits updateList after preview", async () => {
+  it("commits updateList", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -531,13 +352,12 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
+      INTERNAL_TOKEN: "internal-token"
     });
 
-    const previewResponse = await server.inject({
+    const commitResponse = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       headers: {
         "x-internal-token": "internal-token"
       },
@@ -547,18 +367,6 @@ describe("Trello routes", () => {
           listId: "list1",
           name: "Renamed"
         }
-      }
-    });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
       }
     });
 
@@ -572,7 +380,7 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("commits updateBoard after preview", async () => {
+  it("commits updateBoard", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -603,13 +411,12 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
+      INTERNAL_TOKEN: "internal-token"
     });
 
-    const previewResponse = await server.inject({
+    const commitResponse = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       headers: {
         "x-internal-token": "internal-token"
       },
@@ -619,18 +426,6 @@ describe("Trello routes", () => {
           boardId: "allowed",
           name: "Board Renamed"
         }
-      }
-    });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
       }
     });
 
@@ -650,67 +445,7 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("commits createCard after preview", async () => {
-    const mockAgent = setupMockAgent();
-    const trelloMock = mockAgent.get("https://api.trello.com");
-    trelloMock
-      .intercept({
-        path: new RegExp("^/1/lists/list1\\?.*$"),
-        method: "GET"
-      })
-      .reply(200, { id: "list1", idBoard: "allowed" })
-      .persist();
-    trelloMock
-      .intercept({
-        path: new RegExp("^/1/cards\\?.*$"),
-        method: "POST"
-      })
-      .reply(200, cardFixture);
-
-    const server = await createServerWithEnv({
-      TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
-    });
-
-    const previewResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/preview",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        action: "createCard",
-        payload: {
-          listId: "list1",
-          name: "Task"
-        }
-      }
-    });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
-      }
-    });
-
-    expect(commitResponse.statusCode).toBe(200);
-    expect(commitResponse.json()).toEqual({
-      action: "createCard",
-      result: cardFixture
-    });
-
-    await server.close();
-    mockAgent.close();
-  });
-
-  it("commits createCard directly without preview", async () => {
+  it("commits createCard", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -790,7 +525,7 @@ describe("Trello routes", () => {
     await server.close();
   });
 
-  it("commits batch createCard operations after preview", async () => {
+  it("commits batch createCard operations", async () => {
     const mockAgent = setupMockAgent();
     const trelloMock = mockAgent.get("https://api.trello.com");
     trelloMock
@@ -810,13 +545,12 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
-      PREVIEW_TOKEN_SECRET: "preview-secret"
+      INTERNAL_TOKEN: "internal-token"
     });
 
-    const previewResponse = await server.inject({
+    const commitResponse = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       headers: {
         "x-internal-token": "internal-token"
       },
@@ -830,18 +564,6 @@ describe("Trello routes", () => {
         }
       }
     });
-    const { commitToken } = previewResponse.json();
-
-    const commitResponse = await server.inject({
-      method: "POST",
-      url: "/v1/trello/write/commit",
-      headers: {
-        "x-internal-token": "internal-token"
-      },
-      payload: {
-        commitToken
-      }
-    });
 
     expect(commitResponse.statusCode).toBe(200);
     const commitBody = commitResponse.json();
@@ -852,14 +574,14 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
-  it("rejects write preview without internal token", async () => {
+  it("rejects write commit without internal token", async () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed"
     });
 
     const response = await server.inject({
       method: "POST",
-      url: "/v1/trello/write/preview",
+      url: "/v1/trello/write/commit",
       payload: {
         action: "addComment",
         payload: {

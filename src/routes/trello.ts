@@ -20,11 +20,6 @@ import {
   updateCard,
   updateList
 } from "../services/trelloClient.js";
-import {
-  PreviewAction,
-  generatePreviewToken,
-  verifyPreviewToken
-} from "../services/previewToken.js";
 
 const boardIdSchema = z.object({
   boardId: z.string().min(1)
@@ -38,7 +33,7 @@ const cardIdSchema = z.object({
   cardId: z.string().min(1)
 });
 
-const previewRequestSchema = z.object({
+const writeRequestSchema = z.object({
   action: z.enum([
     "createCard",
     "addComment",
@@ -52,9 +47,7 @@ const previewRequestSchema = z.object({
   payload: z.record(z.unknown())
 });
 
-const commitRequestSchema = z.object({
-  commitToken: z.string().min(1)
-});
+type WriteAction = z.infer<typeof writeRequestSchema>["action"];
 
 const createCardPayloadSchema = z.object({
   listId: z.string().min(1),
@@ -197,17 +190,7 @@ const requireWriteToken = (request: { headers: Record<string, unknown> }) => {
   }
 };
 
-const toPreviewResponse = (action: PreviewAction, payload: Record<string, unknown>) => {
-  const exp = Date.now() + 5 * 60 * 1000;
-  const token = generatePreviewToken({ action, payload, exp });
-  return {
-    preview: { action, payload },
-    commitToken: token,
-    expiresAt: new Date(exp).toISOString()
-  };
-};
-
-const commitWriteOperation = async (action: PreviewAction, payload: Record<string, unknown>) => {
+const commitWriteOperation = async (action: WriteAction, payload: Record<string, unknown>) => {
   if (action === "createCard") {
     const parsed = createCardPayloadSchema.parse(payload);
     const listInfo = await getListInfo(parsed.listId);
@@ -545,158 +528,24 @@ export const registerTrelloRoutes = async (fastify: FastifyInstance) => {
   );
 
   fastify.post(
-    "/v1/trello/write/preview",
-    {
-      schema: {
-        description: "Preview Trello write operations",
-        tags: ["trello"],
-        body: {
-          type: "object",
-          properties: {
-            action: { type: "string" },
-            payload: { type: "object" }
-          },
-          required: ["action", "payload"]
-        },
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              preview: {
-                type: "object",
-                properties: {
-                  action: { type: "string" },
-                  payload: { type: "object", additionalProperties: true }
-                },
-                required: ["action", "payload"]
-              },
-              commitToken: { type: "string" },
-              expiresAt: { type: "string" }
-            },
-            required: ["preview", "commitToken", "expiresAt"]
-          }
-        }
-      }
-    },
-    async (request) => {
-      requireWriteToken(request);
-      const { action, payload } = previewRequestSchema.parse(request.body);
-
-      if (action === "createCard") {
-        const parsed = createCardPayloadSchema.parse(payload);
-        const listInfo = await getListInfo(parsed.listId);
-        ensureBoardAllowed(listInfo.idBoard);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "createList") {
-        const parsed = createListPayloadSchema.parse(payload);
-        await getBoard(parsed.boardId);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "createLabel") {
-        const parsed = createLabelPayloadSchema.parse(payload);
-        await getBoard(parsed.boardId);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "updateList") {
-        const parsed = updateListPayloadSchema.parse(payload);
-        const listInfo = await getListInfo(parsed.listId);
-        ensureBoardAllowed(listInfo.idBoard);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "updateBoard") {
-        const parsed = updateBoardPayloadSchema.parse(payload);
-        await getBoard(parsed.boardId);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "addComment") {
-        const parsed = addCommentPayloadSchema.parse(payload);
-        await getCard(parsed.cardId);
-        return toPreviewResponse(action, parsed);
-      }
-
-      if (action === "batch") {
-        const parsed = batchPayloadSchema.parse(payload);
-        const operations = parsed.operations.map((operation) =>
-          parseOperation(operation.action, operation.payload)
-        );
-        for (const operation of operations) {
-          if (operation.action === "createCard") {
-            const listInfo = await getListInfo(operation.payload.listId);
-            ensureBoardAllowed(listInfo.idBoard);
-          } else if (operation.action === "createLabel") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "createList") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "updateList") {
-            const listInfo = await getListInfo(operation.payload.listId);
-            ensureBoardAllowed(listInfo.idBoard);
-          } else if (operation.action === "updateBoard") {
-            await getBoard(operation.payload.boardId);
-          } else if (operation.action === "addComment") {
-            await getCard(operation.payload.cardId);
-          } else {
-            await getCard(operation.payload.cardId);
-            if (operation.payload.listId) {
-              const listInfo = await getListInfo(operation.payload.listId);
-              ensureBoardAllowed(listInfo.idBoard);
-            }
-          }
-        }
-        return toPreviewResponse(action, { operations });
-      }
-
-      const parsed = updateCardPayloadSchema.parse(payload);
-      await getCard(parsed.cardId);
-      if (parsed.listId) {
-        const listInfo = await getListInfo(parsed.listId);
-        ensureBoardAllowed(listInfo.idBoard);
-      }
-      return toPreviewResponse(action, parsed);
-    }
-  );
-
-  fastify.post(
     "/v1/trello/write/commit",
     {
       schema: {
         description: "Commit Trello write operations",
         tags: ["trello"],
         body: {
-          oneOf: [
-            {
-              type: "object",
-              properties: {
-                commitToken: { type: "string" }
-              },
-              required: ["commitToken"]
-            },
-            {
-              type: "object",
-              properties: {
-                action: { type: "string" },
-                payload: { type: "object", additionalProperties: true }
-              },
-              required: ["action", "payload"]
-            }
-          ]
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            payload: { type: "object", additionalProperties: true }
+          },
+          required: ["action", "payload"]
         }
       }
     },
     async (request) => {
       requireWriteToken(request);
-      const commitTokenResult = commitRequestSchema.safeParse(request.body);
-      if (commitTokenResult.success) {
-        const tokenPayload = verifyPreviewToken(commitTokenResult.data.commitToken);
-        return commitWriteOperation(tokenPayload.action, tokenPayload.payload);
-      }
-
-      const { action, payload } = previewRequestSchema.parse(request.body);
+      const { action, payload } = writeRequestSchema.parse(request.body);
       return commitWriteOperation(action, payload);
     }
   );
