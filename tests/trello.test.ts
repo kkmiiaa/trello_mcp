@@ -539,6 +539,40 @@ describe("Trello routes", () => {
     mockAgent.close();
   });
 
+  it("rejects createLinkCard with extra fields", async () => {
+    const server = await createServerWithEnv({
+      TRELLO_ALLOWED_BOARD_IDS: "allowed",
+      INTERNAL_TOKEN: "internal-token"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/trello/write/commit",
+      headers: {
+        "x-internal-token": "internal-token"
+      },
+      payload: {
+        action: "createLinkCard",
+        payload: {
+          listId: "list1",
+          urlSource: "https://trello.com/c1",
+          name: "Project B（週次進捗）"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Invalid request",
+        details: expect.any(Object)
+      }
+    });
+
+    await server.close();
+  });
+
   it("rejects unarchiving cards or lists", async () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",

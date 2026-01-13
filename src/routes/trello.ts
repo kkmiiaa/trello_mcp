@@ -62,16 +62,9 @@ const createCardPayloadSchema = z.object({
 const createLinkCardPayloadSchema = z
   .object({
     listId: z.string().min(1),
-    urlSource: z.string().min(1),
-    name: z.string().min(1).optional(),
-    desc: z.string().optional(),
-    due: z.string().nullable().optional(),
-    dueComplete: z.boolean().optional(),
-    labelIds: z.array(z.string()).optional()
+    urlSource: z.string().min(1)
   })
-  .refine((payload) => payload.name !== undefined || payload.urlSource !== undefined, {
-    message: "Either name or urlSource must be provided"
-  });
+  .strict();
 
 const createListPayloadSchema = z.object({
   boardId: z.string().min(1),
@@ -223,7 +216,7 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     const parsed = createLinkCardPayloadSchema.parse(payload);
     const listInfo = await getListInfo(parsed.listId);
     ensureBoardAllowed(listInfo.idBoard);
-    const name = parsed.name ?? parsed.urlSource;
+    const name = parsed.urlSource;
     const result = await createCard({ ...parsed, name });
     return { action, result };
   }
@@ -298,7 +291,7 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
         const result = await createCard(operation.payload);
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLinkCard") {
-        const name = operation.payload.name ?? operation.payload.urlSource;
+        const name = operation.payload.urlSource;
         const result = await createCard({ ...operation.payload, name });
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLabel") {

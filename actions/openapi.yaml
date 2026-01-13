@@ -522,21 +522,6 @@ components:
           type: string
         urlSource:
           type: string
-        name:
-          type: string
-          description: Optional; defaults to urlSource when omitted.
-        desc:
-          type: string
-        due:
-          type:
-            - string
-            - "null"
-        dueComplete:
-          type: boolean
-        labelIds:
-          type: array
-          items:
-            type: string
       required:
         - listId
         - urlSource
