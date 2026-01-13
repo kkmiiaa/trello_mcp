@@ -62,6 +62,7 @@ const createCardPayloadSchema = z.object({
 const createLinkCardPayloadSchema = z
   .object({
     listId: z.string().min(1),
+    name: z.string().min(1),
     urlSource: z.string().min(1)
   })
   .strict();
@@ -218,7 +219,8 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     ensureBoardAllowed(listInfo.idBoard);
     const result = await createCard({
       listId: parsed.listId,
-      name: parsed.urlSource
+      name: parsed.name,
+      desc: `Link: ${parsed.urlSource}`
     });
     return { action, result };
   }
@@ -295,7 +297,8 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
       } else if (operation.action === "createLinkCard") {
         const result = await createCard({
           listId: operation.payload.listId,
-          name: operation.payload.urlSource
+          name: operation.payload.name,
+          desc: `Link: ${operation.payload.urlSource}`
         });
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLabel") {

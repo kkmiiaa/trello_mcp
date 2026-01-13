@@ -524,6 +524,7 @@ describe("Trello routes", () => {
         action: "createLinkCard",
         payload: {
           listId: "list1",
+          name: "Project B（週次進捗）",
           urlSource: "https://trello.com/c1"
         }
       }
@@ -555,8 +556,9 @@ describe("Trello routes", () => {
         action: "createLinkCard",
         payload: {
           listId: "list1",
+          name: "Project B（週次進捗）",
           urlSource: "https://trello.com/c1",
-          name: "Project B（週次進捗）"
+          desc: "extra"
         }
       }
     });

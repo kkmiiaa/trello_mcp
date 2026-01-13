@@ -181,7 +181,6 @@ export const createCard = async (params: {
   listId: string;
   name: string;
   desc?: string;
-  urlSource?: string;
   due?: string | null;
   dueComplete?: boolean;
   labelIds?: string[];
@@ -191,7 +190,6 @@ export const createCard = async (params: {
     name: params.name
   };
   if (params.desc !== undefined) payload.desc = params.desc;
-  if (params.urlSource !== undefined) payload.urlSource = params.urlSource;
   if (params.due !== undefined) payload.due = params.due ?? "";
   if (params.dueComplete !== undefined) payload.dueComplete = String(params.dueComplete);
   if (params.labelIds && params.labelIds.length > 0) {
