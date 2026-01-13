@@ -91,7 +91,7 @@ describe("Trello routes", () => {
   it("returns 403 for boardId outside allowlist", async () => {
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
+      INTERNAL_TOKEN: "internal-token"
     });
 
     const response = await server.inject({
@@ -122,7 +122,7 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
+      INTERNAL_TOKEN: "internal-token"
     });
 
     const response = await server.inject({
@@ -179,7 +179,7 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
+      INTERNAL_TOKEN: "internal-token"
     });
 
     const response = await server.inject({
@@ -211,7 +211,7 @@ describe("Trello routes", () => {
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
-      INTERNAL_TOKEN: "internal-token",
+      INTERNAL_TOKEN: "internal-token"
     });
 
     const response = await server.inject({
