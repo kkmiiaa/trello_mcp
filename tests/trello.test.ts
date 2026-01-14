@@ -461,6 +461,24 @@ describe("Trello routes", () => {
         method: "POST"
       })
       .reply(200, cardFixture);
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards/c1/attachments(\\?.*)?$"),
+        method: "POST"
+      })
+      .reply(200, { id: "att1", url: "https://trello.com/c1" });
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards/c1/attachments(\\?.*)?$"),
+        method: "POST"
+      })
+      .reply(200, { id: "att1", url: "https://trello.com/c1" });
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards/c1/attachments(\\?.*)?$"),
+        method: "POST"
+      })
+      .reply(200, { id: "att1", url: "https://trello.com/c1" });
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",
@@ -508,6 +526,12 @@ describe("Trello routes", () => {
         method: "POST"
       })
       .reply(200, cardFixture);
+    trelloMock
+      .intercept({
+        path: new RegExp("^/1/cards/c1/attachments(\\?.*)?$"),
+        method: "POST"
+      })
+      .reply(200, { id: "att1", url: "https://trello.com/c1" });
 
     const server = await createServerWithEnv({
       TRELLO_ALLOWED_BOARD_IDS: "allowed",

@@ -96,6 +96,12 @@ export type TrelloCard = {
   labels: Array<{ id: string; name: string; color: string | null }>;
 };
 
+export type TrelloAttachment = {
+  id: string;
+  url: string;
+  name?: string;
+};
+
 export type TrelloLabel = {
   id: string;
   idBoard: string;
@@ -254,6 +260,16 @@ export const addComment = async (params: {
     cardId: response.data?.card?.id ?? params.cardId,
     text: response.data?.text ?? params.text
   };
+};
+
+export const addAttachment = async (params: {
+  cardId: string;
+  url: string;
+  name?: string;
+}): Promise<TrelloAttachment> => {
+  const payload: Record<string, string> = { url: params.url };
+  if (params.name !== undefined) payload.name = params.name;
+  return requestTrello<TrelloAttachment>(`/cards/${params.cardId}/attachments`, payload, "POST");
 };
 
 export const updateCard = async (params: {

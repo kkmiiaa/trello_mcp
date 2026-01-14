@@ -4,6 +4,7 @@ import { AppError } from "../errors.js";
 import { config } from "../config.js";
 import {
   addComment,
+  addAttachment,
   createCard,
   createLabel,
   createList,
@@ -219,9 +220,9 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
     ensureBoardAllowed(listInfo.idBoard);
     const result = await createCard({
       listId: parsed.listId,
-      name: parsed.name,
-      desc: `Link: ${parsed.urlSource}`
+      name: parsed.name
     });
+    await addAttachment({ cardId: result.id, url: parsed.urlSource });
     return { action, result };
   }
 
@@ -297,9 +298,9 @@ const commitWriteOperation = async (action: WriteAction, payload: Record<string,
       } else if (operation.action === "createLinkCard") {
         const result = await createCard({
           listId: operation.payload.listId,
-          name: operation.payload.name,
-          desc: `Link: ${operation.payload.urlSource}`
+          name: operation.payload.name
         });
+        await addAttachment({ cardId: result.id, url: operation.payload.urlSource });
         results.push({ index, action: operation.action, result });
       } else if (operation.action === "createLabel") {
         const result = await createLabel(operation.payload);

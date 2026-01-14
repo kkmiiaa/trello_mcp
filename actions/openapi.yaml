@@ -520,10 +520,13 @@ components:
       properties:
         listId:
           type: string
+        name:
+          type: string
         urlSource:
           type: string
       required:
         - listId
+        - name
         - urlSource
     CreateListPayload:
       type: object
